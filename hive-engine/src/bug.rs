@@ -9,7 +9,10 @@ pub enum Bug {
     Grasshopper = 1,
     Spider = 2,
     Ant = 3,
-    Beetle = 4
+    Beetle = 4,
+    Mosquito = 5,
+    Ladybug = 6,
+    Pillbug = 7
 }
 
 impl Bug {
@@ -20,11 +23,14 @@ impl Bug {
             Bug::Spider => "spider",
             Bug::Ant => "ant",
             Bug::Beetle => "beetle",
+            Bug::Mosquito => "mosquito",
+            Bug::Ladybug => "ladybug",
+            Bug::Pillbug => "pillbug"
         }
     }
 
-    pub(crate) fn initial_quantity() -> &'static [u8; 5] {
-        &[1, 3, 2, 3, 2]
+    pub(crate) fn initial_quantity() -> &'static [u8; 8] {
+        &[1, 3, 2, 3, 2, 1, 1, 1]
     }
 }
 
@@ -38,6 +44,9 @@ impl TryFrom<u8> for Bug {
             2 => Ok(Bug::Spider),
             3 => Ok(Bug::Ant),
             4 => Ok(Bug::Beetle),
+            5 => Ok(Bug::Mosquito),
+            6 => Ok(Bug::Ladybug),
+            7 => Ok(Bug::Pillbug),
             _ => Err(eyre!("Invalid bug id: {}", value)),
         }
     }

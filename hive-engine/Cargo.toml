@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 bitfield = "0.19.4"
 color-eyre = "0.6.5"
+hexx = "0.24.0"
