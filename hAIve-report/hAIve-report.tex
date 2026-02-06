@@ -1,0 +1,102 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[italian]{babel}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage[hidelinks]{hyperref}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{longtable}
+\usepackage{tabularx}
+
+% Configurazione margini
+\geometry{
+	a4paper,
+	total={170mm,257mm},
+	left=20mm,
+	top=20mm,
+}
+
+% Configurazione per il codice
+\lstset{
+	basicstyle=\ttfamily\small,
+	breaklines=true,
+	frame=single,
+	backgroundcolor=\color{gray!10},
+	keywordstyle=\color{blue},
+	stringstyle=\color{red},
+	commentstyle=\color{green!50!black},
+	showstringspaces=false
+}
+
+\begin{document}
+	
+	% --- FRONTESPIZIO ---
+	\begin{titlepage}
+		\noindent
+		\begin{minipage}[c]{0.25\textwidth}
+			\includegraphics[width=0.8\linewidth]{logo_unisa.pdf} 
+		\end{minipage}
+		\hfill 
+		\begin{minipage}[c]{0.8\textwidth}
+			\centering 
+			{\LARGE \textsc{Università degli Studi di Salerno}} \\
+			\vspace{2mm} 
+			{\small \textbf{Corso di Fondamenti di Intelligenza Artificiale (FIA)}} \\
+			\vspace{1mm}
+			{\normalsize Anno Accademico 2025/26}
+		\end{minipage}
+        
+		\includegraphics[width=1\textwidth]{logo.png} 
+		\vspace{1cm}
+
+        \centering
+		{\Huge \textbf{HAIVE} \par}
+		\vspace{0.5cm}
+		{\Large Report \par}
+		\vspace{0.5cm}
+		{\large Versione 1.0 \par}
+		
+		\vspace{2cm}
+		\textbf{Informazioni sul Progetto} \par
+		\vspace{0.5cm}
+		\begin{tabular}{ll}
+			\textbf{Progetto:} & HAIVE \\
+			\textbf{Documento:} & Report \\
+			\textbf{Versione:} & 1.0 \\
+		\end{tabular}
+		
+		\vspace{1cm}
+		\textbf{Partecipanti:} \par
+		\vspace{0.5cm}
+		\begin{tabular}{|l|l|}
+			\hline
+			\textbf{Nome} & \textbf{Matricola} \\
+			\hline
+			Forte Guglielmo & 051211 \\
+			Rega Maristella & 0512119032 \\
+			Russo Serena & 051211 \\
+			Squitieri Andrea & 0512119008 \\
+			\hline
+		\end{tabular}
+		
+		\vspace{2cm}
+		\textit{Scritto da:} \par
+		Forte Guglielmo, Rega Maristella, Russo Serena, Squitieri Andrea \par
+		\vspace{0.5cm}
+		\textbf{LINK GITHUB:} \url{https://github.com/andrea-sq/hAIve}
+		
+	\end{titlepage}
+	
+	% --- SOMMARIO / INDICE ---
+	\tableofcontents
+	\newpage
+	
+	% --- CONTENUTO ---
+	
+	\section{Introduzione}
+\end{document}
+	
