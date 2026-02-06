@@ -3,6 +3,7 @@ use bitfield::bitfield;
 use color_eyre::owo_colors::OwoColorize;
 use hexx::storage::HexModMap;
 use hexx::{EdgeDirection, Hex, HexBounds};
+use minimax::Winner;
 use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::hash::{DefaultHasher, Hasher};
@@ -835,12 +836,108 @@ impl Board {
         }
     }
 }
+pub struct Rules;
+
+impl minimax::Game for Rules {
+    type S = Board;
+    type M = Turn;
+
+    fn generate_moves(board: &Self::S, turns: &mut Vec<Self::M>) {
+        if board.turn_num < 2 {
+            for (bug, num_left) in board.get_available_bugs().iter() {
+                if *bug == Bug::Queen {
+                    continue;
+                }
+                if *num_left > 0 {
+                    if board.turn_num == 0 {
+                        turns.push(Turn::Place(START_HEX, *bug));
+                    } else {
+                        for &hex in adjacent(START_HEX, *board.nodes.bounds()).iter() {
+                            turns.push(Turn::Place(hex, *bug));
+                        }
+                    }
+                }
+            }
+            return;
+        }
+
+        if board.get_remaining()[Bug::Queen as usize] == 0 {
+            board.generate_movements(turns);
+        }
+
+        if board.get_remaining().iter().any(|&n| n > 0) {
+            board.generate_placements(turns);
+        }
+
+        if turns.is_empty() {
+            turns.push(Turn::Pass);
+        }
+    }
+
+    fn get_winner(board: &Self::S) -> Option<Winner> {
+        let queens_surrounded = board.queens_surrounded();
+        let n = board.zorbist_history.len();
+        if n > 10 {
+            let position_repeat_count = board
+                .zorbist_history
+                .iter()
+                .rev()
+                .step_by(4)
+                .skip(1)
+                .take(8)
+                .filter(|&&hash| hash == board.zorbist_hash)
+                .count();
+            if position_repeat_count >= 2 {
+                return Some(minimax::Winner::Draw);
+            }
+        }
+
+        if queens_surrounded == [6, 6] {
+            Some(minimax::Winner::Draw)
+        } else if queens_surrounded[board.to_move() as usize] == 6 {
+            Some(minimax::Winner::PlayerJustMoved)
+        } else if queens_surrounded[board.to_move().other() as usize] == 6 {
+            Some(minimax::Winner::PlayerToMove)
+        } else {
+            None
+        }
+    }
+
+    fn apply(board: &mut Self::S, turn: Self::M) -> Option<Self::S> {
+        board.apply(turn);
+        None
+    }
+    fn undo(board: &mut Self::S, turn: Self::M) {
+        board.undo(turn);
+    }
+    fn zobrist_hash(board: &Self::S) -> u64 {
+        let mut hash = board.zorbist_hash;
+        if let Some(Turn::Move(_, end)) = board.turn_history.last() {
+            let id_end = find_id(*end, *board.nodes.bounds());
+            hash ^= id_end as u64;
+        }
+
+        hash
+    }
+    fn null_move(_board: &Self::S) -> Option<Self::M> {
+        Some(Turn::Pass)
+    }
+
+    // TODO: Notation
+
+    // TODO: Table index
+
+    fn max_table_index() -> u16 {
+        u16::MAX >> 2
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use hexx::hex;
     use hexx::storage::HexStore;
+    use minimax::Game;
 
     impl Board {
         fn insert_loc(&mut self, loc: Hex, bug: Bug, color: Color) {
@@ -1275,5 +1372,46 @@ mod tests {
         board.generate_throws(&immovable, start, &mut turns, &mut starts, &mut ends);
         assert_eq!(2, turns.len());
         board.assert_movements(&turns, hex(0, 0), &[hex(-1, 1), hex(-1, 2)]);
+    }
+
+    #[test]
+    fn test_winner() {
+        // Draw by threefold repetition.
+        let mut board = Board::default();
+        let x1 = hex(0, -1);
+        let x2 = hex(-1, 0);
+        let y1 = hex(0, 1);
+        let y2 = hex(1, 0);
+        board.apply(Turn::Place(hex(0, 0), Bug::Spider));
+        assert_eq!(None, Rules::get_winner(&board));
+        board.apply(Turn::Place(x1, Bug::Queen));
+        assert_eq!(None, Rules::get_winner(&board));
+        // Create the position the first time.
+        board.apply(Turn::Place(y1, Bug::Queen));
+        assert_eq!(None, Rules::get_winner(&board));
+        board.apply(Turn::Move(x1, x2));
+        assert_eq!(None, Rules::get_winner(&board));
+        board.apply(Turn::Move(y1, y2));
+        assert_eq!(None, Rules::get_winner(&board));
+        board.apply(Turn::Move(x2, x1));
+        assert_eq!(None, Rules::get_winner(&board));
+        // Recreate position for the second time.
+        board.apply(Turn::Move(y2, y1));
+        assert_eq!(None, Rules::get_winner(&board));
+        board.apply(Turn::Move(x1, x2));
+        assert_eq!(None, Rules::get_winner(&board));
+        board.apply(Turn::Move(y1, y2));
+        assert_eq!(None, Rules::get_winner(&board));
+        board.apply(Turn::Move(x2, x1));
+        assert_eq!(None, Rules::get_winner(&board));
+        // Recreate position for the third time.
+        board.apply(Turn::Move(y2, y1));
+        assert_eq!(Some(minimax::Winner::Draw), Rules::get_winner(&board));
+        // Undo reverts zobrist and history.
+        board.undo(Turn::Move(y2, y1));
+        assert_eq!(None, Rules::get_winner(&board));
+        // Redo re-reverts draw state.
+        board.apply(Turn::Move(y2, y1));
+        assert_eq!(Some(minimax::Winner::Draw), Rules::get_winner(&board));
     }
 }
