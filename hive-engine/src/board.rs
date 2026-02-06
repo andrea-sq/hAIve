@@ -1,9 +1,10 @@
-use std::cmp::min;
+use std::cmp::{max, min};
+use std::collections::HashSet;
 use std::hash::{DefaultHasher, Hasher};
 use std::sync::OnceLock;
 use bitfield::bitfield;
 use color_eyre::owo_colors::OwoColorize;
-use hexx::Hex;
+use hexx::{EdgeDirection, Hex, HexBounds};
 use hexx::storage::HexModMap;
 use crate::bug::Bug;
 
@@ -12,6 +13,23 @@ pub(crate) const GRID_RADIUS: usize = 18;
 pub(crate) const GRID_SIZE: usize = 919;
 
 static ZORBIST_TABLE: OnceLock<[u64; GRID_SIZE * 2]> = OnceLock::new();
+
+
+fn adjacent(hex: Hex, hex_bounds: HexBounds) -> [Hex; 6] {
+    let mut res = hex.all_neighbors();
+    res.iter_mut().for_each(|h| *h = h.const_sub(hex_bounds.center));
+    return res;
+}
+fn neighbor(hex: Hex, dir: EdgeDirection, hex_bounds: HexBounds) -> Hex {
+    return hex.neighbor(dir).const_sub(hex_bounds.center)
+}
+
+fn find_id(hex: Hex, hex_bounds: HexBounds) -> usize {
+    return hex
+        .const_sub(hex_bounds.center)
+        .to_hexmod_coordinates(hex_bounds.radius) as usize;
+}
+
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Color {
@@ -73,6 +91,10 @@ impl Node {
 
     fn occupied(&self) -> bool {
         self.0 != 0
+    }
+
+    fn is_stacked(self) -> bool {
+        self.get_tile_height() > 1
     }
 }
 
@@ -159,8 +181,7 @@ impl Board {
     fn insert_underworld(&mut self, node: Node, hex: Hex) {
         let height = self.underworld_height(hex, node);
         if self.underworld_size >= self.underworld.len() {
-            unreachable!("underworld is full");
-        }
+            unreachable!("underworld is full"); }
         self.underworld[self.underworld_size] = UnderNode::new(node, hex, height);
         self.underworld_size += 1;
     }
@@ -271,7 +292,8 @@ impl Board {
     pub(crate) fn queens_surrounded(&self) -> [usize; 2] {
         let mut out = [0; 2];
         for (i, entry) in out.iter_mut().enumerate() {
-            *entry = self.queens[i].all_neighbors().iter().filter(|adj| self.occupied(**adj)).count();
+            *entry = adjacent(self.queens[i], *self.nodes.bounds())
+                .iter().filter(|adj| self.occupied(**adj)).count();
         }
         out
     }
@@ -368,8 +390,422 @@ impl Board {
             _ => {}
         }
     }
-
-
 }
+
+impl Board {
+    fn generate_placement(&self, turns: &mut Vec<Turn>) {
+        let mut no_placement = HashSet::new();
+        for &enemy in self.occupied_hexes[self.to_move().other() as usize].iter() {
+            for adj in adjacent(enemy, *self.nodes.bounds()) {
+                no_placement.insert(adj);
+            }
+        }
+        for &friend in self.occupied_hexes[self.to_move() as usize].iter() {
+            for hex in adjacent(friend, *self.nodes.bounds()) {
+                if no_placement.contains(&hex) {
+                    continue
+                }
+                no_placement.insert(hex);
+                if self.occupied(hex) {
+                    continue;
+                }
+                for (bug, num_left) in self.get_available_bugs().iter() {
+                    if self.is_queen_required() && *bug != Bug::Queen {
+                        continue;
+                    }
+                    if *num_left > 0 {
+                        turns.push(Turn::Place(hex, *bug));
+                    }
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_cut_vertices(&self) -> HashSet<Hex>{
+        struct State<'a> {
+            board: &'a Board,
+            visited: HashSet<Hex>,
+            immovable: HashSet<Hex>,
+            num: [u8; GRID_SIZE],
+            low: [u8; GRID_SIZE],
+            visit_num: u8
+        }
+
+        let mut state = State {
+            board: self,
+            visited: HashSet::new(),
+            immovable: HashSet::new(),
+            num: [0; GRID_SIZE],
+            low: [0; GRID_SIZE],
+            visit_num: 1
+        };
+
+        fn dfs(state: &mut State, hex: Hex, parent: Hex) {
+            state.visited.insert(hex);
+            let id_hex = hex.const_sub(state.board.nodes.bounds().center)
+                .to_hexmod_coordinates(state.board.nodes.bounds().radius) as usize;
+            state.num[id_hex] = state.visit_num;
+            state.low[id_hex] = state.visit_num;
+            state.visit_num += 1;
+
+            let root = hex == parent;
+            let mut children = 0;
+            for adj in adjacent(hex, *state.board.nodes.bounds()) {
+                let id_adj = adj.const_sub(state.board.nodes.bounds().center).to_hexmod_coordinates(state.board.nodes.bounds().radius) as usize;
+                if !state.board.occupied(adj) {
+                    continue;
+                }
+                if adj == parent {
+                    continue;
+                }
+                if state.visited.contains(&adj) {
+                    state.low[id_hex]  = min(state.low[id_hex], state.num[id_adj]);
+                } else {
+                    dfs(state, adj, hex);
+                    state.low[id_hex] = min(state.low[id_hex], state.low[id_adj]);
+                    if state.low[id_adj] >= state.num[id_hex] && !root{
+                        state.immovable.insert(hex);
+                    }
+                    children += 1;
+                }
+            }
+            if root && children > 1 {
+                state.immovable.insert(hex);
+            }
+        }
+        let start = self.queens[0];
+        dfs(&mut state, start, start);
+        state.immovable
+    }
+
+    pub(crate) fn slideable_adjacent<'a>(
+        &self, neighbors: &'a mut [Hex; 6], origin: Hex, hex: Hex
+    ) -> impl Iterator<Item = Hex> + 'a {
+        *neighbors = adjacent(hex, *self.nodes.bounds());
+        let mut occupied = 0;
+        for neighbor in neighbors.iter().rev() {
+            occupied <<= 1;
+            if self.occupied(*neighbor) && *neighbor != origin {
+                occupied |= 1;
+            }
+        }
+        occupied |= (occupied << 6) | (occupied << 12);
+        let slideable = (!occupied & ((occupied << 1) ^ (occupied >> 1))) >> 6;
+
+        neighbors.iter().enumerate().filter_map(move |(i, &hex)| {
+            if (slideable >> i) & 1 != 0 {
+                Some(hex)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn slideable_adjacent_beetle<'a>(
+        &self, out: &'a mut [Hex; 6], orig: Hex, hex: Hex,
+    ) -> impl Iterator<Item = Hex> + 'a {
+        let mut self_height = self.height(hex);
+        if orig == hex {
+            self_height -= 1;
+        }
+        let mut heights = [0; 6];
+        let neighbors = adjacent(hex, *self.nodes.bounds());
+        for i in 0..6 {
+            heights[i] = self.height(neighbors[i]);
+        }
+
+        let mut n = 0;
+        for i in 0..6 {
+            let barrier = max(self_height, heights[i]);
+            if barrier == 0 {
+                continue;
+            }
+            if heights[(i + 1) % 6] > barrier && heights[(i + 5) % 6] > barrier {
+                continue;
+            }
+            out[n] = neighbors[i];
+            n += 1;
+        }
+
+        out.iter().take(n).copied()
+    }
+
+    fn generate_stack_walking(&self, hex: Hex, turns: &mut Vec<Turn>) {
+        let mut buf = [Hex::ZERO; 6];
+        for adj in self.slideable_adjacent_beetle(&mut buf, hex, hex) {
+            turns.push(Turn::Move(hex, adj));
+        }
+    }
+
+    fn generate_jumps(&self, hex: Hex, turns: &mut Vec<Turn>) {
+        for dir in EdgeDirection::ALL_DIRECTIONS {
+            let mut jump = neighbor(hex, dir, *self.nodes.bounds());
+            let mut dist = 1;
+            while self.occupied(jump) {
+                jump = neighbor(hex, dir, *self.nodes.bounds());
+                dist += 1;
+                if jump == hex {
+                    dist = 0;
+                    break;
+                }
+            }
+            if dist > 1 {
+                turns.push(Turn::Move(hex, jump));
+            }
+        }
+    }
+
+    fn generate_walk1(&self, hex: Hex, turns: &mut Vec<Turn>) {
+        let mut buf = [Hex::ZERO; 6];
+        for adj in self.slideable_adjacent(&mut buf, hex, hex) {
+            turns.push(Turn::Move(hex, adj));
+        }
+    }
+
+    fn generate_walk3(&self, orig: Hex, turns: &mut Vec<Turn>) {
+        let mut buf1 = [Hex::ZERO; 6];
+        let mut buf2 = [Hex::ZERO; 6];
+        let mut buf3 = [Hex::ZERO; 6];
+        let mut visited = HashSet::new();
+        visited.insert(orig);
+
+        for s1 in self.slideable_adjacent(&mut buf1, orig, orig) {
+            for s2 in self.slideable_adjacent(&mut buf2, orig, s1) {
+                if s2 != orig {
+                    for s3 in self.slideable_adjacent(&mut buf3, orig, s2) {
+                        if s3 != s1 && !visited.contains(&s3) {
+                            turns.push(Turn::Move(orig, s3));
+                            visited.insert(s3);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn generate_walk_all(&self, orig: Hex, turns: &mut Vec<Turn>) {
+        let mut visited = HashSet::new();
+        let mut queue = [Hex::ZERO; 16];
+        queue[0] = orig;
+        let mut qsize = 1;
+        let mut buf = [Hex::ZERO; 6];
+        while qsize > 0 {
+            qsize -= 1;
+            let node = queue[qsize];
+            if visited.contains(&node) {
+                continue;
+            }
+            visited.insert(node);
+            if node != orig {
+                turns.push(Turn::Move(orig, node));
+            }
+            for adj in self.slideable_adjacent(&mut buf, orig, node) {
+                if !visited.contains(&adj) {
+                    queue[qsize] = adj;
+                    qsize += 1;
+                }
+            }
+        }
+    }
+    fn generate_ladybug(&self, hex: Hex, turns: &mut Vec<Turn>) {
+        let mut buf1 = [Hex::ZERO; 6];
+        let mut buf2 = [Hex::ZERO; 6];
+        let mut buf3 = [Hex::ZERO; 6];
+        let mut step2 = HashSet::new();
+        let mut step3 = HashSet::new();
+        for s1 in self.slideable_adjacent_beetle(&mut buf1, hex, hex) {
+            if self.occupied(s1) {
+                for s2 in self.slideable_adjacent_beetle(&mut buf2, hex, s1) {
+                    if self.occupied(s2) && !step2.contains(&s2) {
+                        step2.insert(s2);
+                        for s3 in self.slideable_adjacent_beetle(&mut buf3, hex, s2) {
+                            if !self.occupied(s3) && !step3.contains(&s3) {
+                                step3.insert(s3);
+                                turns.push(Turn::Move(hex, s3));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    fn generate_throws(
+        &self, immovable: &HashSet<Hex>, hex: Hex, turns: &mut Vec<Turn>, throw_starts: &mut HashSet<Hex>,
+        throw_ends: &mut HashSet<Hex>,
+    ) {
+        let mut starts = [Hex::ZERO; 6];
+        let mut num_starts = 0;
+        let mut ends = [Hex::ZERO; 6];
+        let mut num_ends = 0;
+        let mut buf = [Hex::ZERO; 6];
+        let nw_direction = EdgeDirection::FLAT_NORTH_WEST;
+        let origin = neighbor(neighbor(hex, nw_direction, *self.nodes.bounds()), nw_direction, *self.nodes.bounds());
+        for adj in self.slideable_adjacent_beetle(&mut buf, origin, hex) {
+            match self.height(adj) {
+                0 => {
+                    ends[num_ends] = adj;
+                    num_ends += 1;
+                }
+                1 => {
+                    if !immovable.contains(&adj) {
+                        starts[num_starts] = adj;
+                        num_starts += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+        for &start in starts[..num_starts].iter() {
+            for &end in ends[..num_ends].iter() {
+                turns.push(Turn::Move(start, end));
+                throw_starts.insert(start);
+                throw_ends.insert(end);
+            }
+        }
+    }
+
+    fn generate_mosquito(&self, hex: Hex, turns: &mut Vec<Turn>) {
+        let mut targets = [false; 8];
+        for adj in adjacent(hex, *self.nodes.bounds()) {
+            let node = self.nodes[adj];
+            if node.occupied() {
+                targets[node.get_bug().unwrap() as usize] = true;
+            }
+        }
+
+        let mut i = turns.len();
+        if targets[Bug::Ant as usize] {
+            self.generate_walk_all(hex, turns);
+        } else {
+            // Avoid adding strictly duplicative moves to the ant.
+            if targets[Bug::Queen as usize]
+                || targets[Bug::Beetle as usize]
+                || targets[Bug::Pillbug as usize]
+            {
+                self.generate_walk1(hex, turns);
+            }
+            if targets[Bug::Spider as usize] {
+                self.generate_walk3(hex, turns);
+            }
+        }
+        if targets[Bug::Grasshopper as usize] {
+            self.generate_jumps(hex, turns);
+        }
+        if targets[Bug::Beetle as usize] {
+            self.generate_stack_walking(hex, turns);
+        }
+        if targets[Bug::Ladybug as usize] {
+            self.generate_ladybug(hex, turns);
+        }
+
+        // Remove duplicates.
+        let mut dests = HashSet::new();
+        while i < turns.len() {
+            if let Turn::Move(_, dest) = turns[i] {
+                if dests.contains(&dest) {
+                    turns.swap_remove(i);
+                } else {
+                    dests.insert(dest);
+                    i += 1;
+                }
+            }
+        }
+    }
+
+    pub(crate) fn generate_movements(&self, turns: &mut Vec<Turn>) {
+        let mut immovable = self.find_cut_vertices();
+        let stunned = match self.turn_history.last() {
+            Some(Turn::Move(_, dest)) => Some(dest),
+            _ => None,
+        };
+        if let Some(moved) = stunned {
+            // Can't move pieces that were moved on the opponent's turn.
+            immovable.insert(*moved);
+        }
+
+        // Pillbug throws need to be deduped against organic movements, so generate them first.
+        let mut throw_starts = HashSet::new();
+        let mut throw_ends = HashSet::new();
+        let first_move = turns.len();
+        let mut marker;
+        for &hex in self.occupied_hexes[self.to_move() as usize].iter() {
+            marker = turns.len();
+            let node = self.node(hex);
+            if stunned == Some(&hex) {
+                continue;
+            }
+            if node.get_bug().unwrap() == Bug::Pillbug
+                || (node.get_bug().unwrap() == Bug::Mosquito
+                && !node.is_stacked()
+                && adjacent(hex, *self.nodes.bounds()).iter().any(|&adj| {
+                let n = self.node(adj);
+                n.occupied() && n.get_bug().unwrap() == Bug::Pillbug
+            }))
+            {
+                self.generate_throws(&immovable, hex, turns, &mut throw_starts, &mut throw_ends);
+                // Dedup throws from pillbug and mosquito
+                if marker > 0 {
+                    let mut i = marker;
+                    while i < turns.len() {
+                        if turns[first_move..marker].contains(&turns[i]) {
+                            turns.swap_remove(i);
+                        } else {
+                            i += 1;
+                        }
+                    }
+                }
+            }
+        }
+        let num_throws = turns.len();
+
+        for &hex in self.occupied_hexes[self.to_move() as usize].iter() {
+            marker = turns.len();
+            let node = self.node(hex);
+            if node.is_stacked() {
+                self.generate_stack_walking(hex, turns);
+                continue;
+            }
+            if immovable.contains(&hex) {
+                continue;
+            }
+            match node.get_bug().unwrap() {
+                Bug::Queen => self.generate_walk1(hex, turns),
+                Bug::Grasshopper => self.generate_jumps(hex, turns),
+                Bug::Spider => self.generate_walk3(hex, turns),
+                Bug::Ant => self.generate_walk_all(hex, turns),
+                Bug::Beetle => {
+                    self.generate_walk1(hex, turns);
+                    self.generate_stack_walking(hex, turns);
+                }
+                Bug::Mosquito => self.generate_mosquito(hex, turns),
+                Bug::Ladybug => self.generate_ladybug(hex, turns),
+                Bug::Pillbug => self.generate_walk1(hex, turns),
+            }
+
+            // Dedup against pillbug throws.
+            if throw_starts.contains(&hex) {
+                let mut i = marker;
+                while i < turns.len() {
+                    let turn = turns[i];
+                    let end = match turn {
+                        Turn::Move(_, end) => end,
+                        _ => {
+                            i += 1;
+                            continue;
+                        }
+                    };
+                    if throw_ends.contains(&end) && turns[first_move..num_throws].contains(&turn) {
+                        turns.swap_remove(i);
+                    } else {
+                        i += 1;
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 
