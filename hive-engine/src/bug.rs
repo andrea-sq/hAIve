@@ -53,6 +53,21 @@ impl Bug {
         }
     }
 
+    pub fn iter_all() -> impl Iterator<Item = Self> {
+        [
+            Bug::Queen,
+            Bug::Grasshopper,
+            Bug::Spider,
+            Bug::Ant,
+            Bug::Beetle,
+            Bug::Mosquito,
+            Bug::Ladybug,
+            Bug::Pillbug,
+        ]
+        .iter()
+        .copied()
+    }
+
     pub(crate) fn initial_quantity() -> &'static [u8; 8] {
         &[1, 3, 2, 3, 2, 1, 1, 1]
     }
