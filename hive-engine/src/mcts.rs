@@ -1,7 +1,6 @@
 use crate::board::Rules;
 use minimax::Game;
-use rand::prelude::ThreadRng;
-use rand::Rng;
+use old_rand::prelude::*;
 
 pub struct BiasedRollouts {}
 
@@ -17,7 +16,7 @@ impl minimax::RolloutPolicy for BiasedRollouts {
         // TODO: Lazily generate moves
         Rules::generate_moves(board, turns);
         let n = turns.len();
-        turns.rotate_left(rng.random_range(0..n));
+        turns.rotate_left(rng.gen_range(0..n));
         for &turn in turns.iter() {
             board.apply(turn);
             if Rules::get_winner(board) == Some(minimax::Winner::PlayerJustMoved) {
@@ -29,3 +28,5 @@ impl minimax::RolloutPolicy for BiasedRollouts {
         turns[0]
     }
 }
+
+unsafe impl Send for BiasedRollouts {}

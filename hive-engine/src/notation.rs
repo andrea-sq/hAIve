@@ -128,7 +128,7 @@ impl Board {
         out
     }
     pub fn game_string(&self) -> String {
-        let mut out = String::new();
+        let mut out = self.game_type();
         out.push(';');
         out.push_str(self.game_state_string());
         out.push(';');

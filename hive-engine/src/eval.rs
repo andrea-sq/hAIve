@@ -13,6 +13,7 @@ impl Evaluator for DumbEvaluator {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct BasicEvaluator {
     aggression: Evaluation,
     queen_liberty_factor: Evaluation,
