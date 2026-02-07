@@ -184,7 +184,7 @@ impl Board {
         format!("{:?}[{}]", self.to_move(), self.turn_history.len() / 2 + 1)
     }
 
-    fn game_log(&self) -> String {
+    pub fn game_log(&self) -> String {
         let mut board = Board::from_game_type(&self.game_type()).unwrap();
         let mut log = String::new();
         for &m in &self.turn_history {

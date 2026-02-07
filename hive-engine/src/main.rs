@@ -1,14 +1,4 @@
-use crate::player::configure_player;
-use crate::uhp_server::uhp_serve;
-
-mod board;
-mod bug;
-mod eval;
-mod mcts;
-mod notation;
-mod player;
-mod random;
-mod uhp_server;
+use hive_engine::*;
 
 fn main() {
     let (config, args) = configure_player().unwrap();
