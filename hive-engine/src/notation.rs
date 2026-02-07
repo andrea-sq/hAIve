@@ -27,7 +27,7 @@ impl From<std::io::Error> for UhpError {
 pub type Result<T> = std::result::Result<T, UhpError>;
 pub fn engine_version() -> &'static str {
     // TODO
-    todo!()
+    "1.0.0"
 }
 impl Board {
     pub fn from_game_type(game_type: &str) -> Result<Self> {
@@ -308,7 +308,7 @@ impl Board {
     }
 
     pub(crate) fn from_game_string(s: &str) -> Result<Self> {
-        let mut toks = s.split(' ');
+        let mut toks = s.split(';');
         let game_type = toks
             .next()
             .ok_or_else(|| UhpError::InvalidGameString(s.to_owned()))?;
