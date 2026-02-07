@@ -75,11 +75,11 @@ bitfield! {
 }
 
 impl Node {
-    fn empty() -> Self {
+    pub(crate) fn empty() -> Self {
         Node(0)
     }
 
-    fn new_occupied(bug: Bug, color: Color, bug_num: u8, clipped_height: u8) -> Self {
+    pub(crate) fn new_occupied(bug: Bug, color: Color, bug_num: u8, clipped_height: u8) -> Self {
         let mut node = Node(0);
         node.set_bug(bug);
         node.set_color(color);
@@ -88,11 +88,11 @@ impl Node {
         node
     }
 
-    fn occupied(&self) -> bool {
+    pub(crate) fn occupied(&self) -> bool {
         self.0 != 0
     }
 
-    fn is_stacked(self) -> bool {
+    pub(crate) fn is_stacked(self) -> bool {
         self.get_tile_height() > 1
     }
 }
