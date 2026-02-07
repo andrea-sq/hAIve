@@ -15,17 +15,17 @@ pub(crate) const GRID_SIZE: usize = 1027;
 
 static ZORBIST_TABLE: OnceLock<[u64; GRID_SIZE * 2]> = OnceLock::new();
 
-fn adjacent(hex: Hex, hex_bounds: HexBounds) -> [Hex; 6] {
+pub fn adjacent(hex: Hex, hex_bounds: HexBounds) -> [Hex; 6] {
     let mut res = hex.all_neighbors();
     res.iter_mut()
         .for_each(|h| *h = h.const_sub(hex_bounds.center));
     return res;
 }
-fn neighbor(hex: Hex, dir: EdgeDirection, hex_bounds: HexBounds) -> Hex {
+pub fn neighbor(hex: Hex, dir: EdgeDirection, hex_bounds: HexBounds) -> Hex {
     return hex.neighbor(dir).const_sub(hex_bounds.center);
 }
 
-fn find_id(hex: Hex, hex_bounds: HexBounds) -> usize {
+pub fn find_id(hex: Hex, hex_bounds: HexBounds) -> usize {
     return hex
         .const_sub(hex_bounds.center)
         .to_hexmod_coordinates(hex_bounds.radius) as usize;
@@ -68,10 +68,10 @@ bitfield! {
     #[derive(Clone, Copy)]
     pub struct Node(u8);
     impl Debug;
-    u8, from try_into Color, get_color, set_color: 7, 7;
-    u8, from try_into Bug, get_bug, set_bug: 6, 4;
-    get_bug_num, set_bug_num: 3, 2;
-    get_tile_height, set_tile_height: 1, 0;
+    pub u8, from try_into Color, get_color, set_color: 7, 7;
+    pub u8, from try_into Bug, get_bug, set_bug: 6, 4;
+    pub get_bug_num, set_bug_num: 3, 2;
+    pub get_tile_height, set_tile_height: 1, 0;
 }
 
 impl Node {
@@ -1414,4 +1414,5 @@ mod tests {
         board.apply(Turn::Move(y2, y1));
         assert_eq!(Some(minimax::Winner::Draw), Rules::get_winner(&board));
     }
+    // TODO: Test winner5
 }

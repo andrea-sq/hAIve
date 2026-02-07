@@ -1,4 +1,3 @@
-use bitfield::BitRange;
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
 
@@ -12,7 +11,7 @@ pub enum Bug {
     Beetle = 4,
     Mosquito = 5,
     Ladybug = 6,
-    Pillbug = 7
+    Pillbug = 7,
 }
 
 impl Bug {
@@ -25,7 +24,32 @@ impl Bug {
             Bug::Beetle => "beetle",
             Bug::Mosquito => "mosquito",
             Bug::Ladybug => "ladybug",
-            Bug::Pillbug => "pillbug"
+            Bug::Pillbug => "pillbug",
+        }
+    }
+    pub fn to_char(&self) -> char {
+        match self {
+            Bug::Queen => 'q',
+            Bug::Grasshopper => 'g',
+            Bug::Spider => 's',
+            Bug::Ant => 'a',
+            Bug::Beetle => 'b',
+            Bug::Mosquito => 'm',
+            Bug::Ladybug => 'l',
+            Bug::Pillbug => 'p',
+        }
+    }
+    pub fn from_char(c: char) -> Option<Bug> {
+        match c.to_ascii_lowercase() {
+            'q' => Some(Bug::Queen),
+            'g' => Some(Bug::Grasshopper),
+            's' => Some(Bug::Spider),
+            'a' => Some(Bug::Ant),
+            'b' => Some(Bug::Beetle),
+            'm' => Some(Bug::Mosquito),
+            'l' => Some(Bug::Ladybug),
+            'p' => Some(Bug::Pillbug),
+            _ => None,
         }
     }
 
@@ -57,6 +81,3 @@ impl Into<u8> for Bug {
         self as u8
     }
 }
-
-
-
