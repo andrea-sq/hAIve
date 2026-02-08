@@ -13,6 +13,7 @@ fn face_off(
     game_type: &str,
     mut player1: Box<dyn Player>,
     mut player2: Box<dyn Player>,
+    verbose: bool,
 ) -> Option<String> {
     let mut b = Board::from_game_type(game_type).unwrap();
     player1.new_game(game_type);
@@ -21,7 +22,9 @@ fn face_off(
     let mut p = 0;
     loop {
         // b.println();
-        println!("{} ({:?}) to move", players[p].name(), b.to_move());
+        if verbose {
+            println!("{} ({:?}) to move", players[p].name(), b.to_move());
+        }
         let m = players[p].generate_move();
         let mut moves = Vec::new();
         Rules::generate_moves(&b, &mut moves);
@@ -31,13 +34,15 @@ fn face_off(
                 players[p].name(),
                 b.to_move_string(m)
             );
-            println!("Game log: {}", b.game_log());
+            // println!("Game log: {}", b.game_log());
+            println!("Game string: {}", b.game_string());
             return Some(players[1 - p].name());
         }
         b.apply(m);
         if let Some(winner) = Rules::get_winner(&b) {
             // b.println();
-            println!("Game log: {}", b.game_log());
+            // println!("Game log: {}", b.game_log());
+            println!("Game string: {}", b.game_string());
             return match winner {
                 minimax::Winner::Draw => None,
                 minimax::Winner::PlayerJustMoved => Some(players[p].name()),
@@ -59,15 +64,17 @@ fn get_player(name: &str, config: &PlayerConfig) -> Box<dyn Player> {
 }
 
 pub fn play_game(
-    config: PlayerConfig,
+    config1: PlayerConfig,
+    config2: PlayerConfig,
     game_type: &str,
     name1: &str,
     name2: &str,
     depth: Option<u8>,
     timeout: Option<String>,
+    verbose: bool,
 ) {
-    let mut player1 = get_player(name1, &config);
-    let mut player2 = get_player(name2, &config);
+    let mut player1 = get_player(name1, &config1);
+    let mut player2 = get_player(name2, &config2);
     if let Some(depth) = depth {
         player1.set_max_depth(depth);
         player2.set_max_depth(depth);
@@ -87,7 +94,7 @@ pub fn play_game(
         player1.set_timeout(timeout);
         player2.set_timeout(timeout);
     }
-    match face_off(game_type, player1, player2) {
+    match face_off(game_type, player1, player2, verbose) {
         None => println!("Game over: draw."),
         Some(name) => println!("Game over: {name} won."),
     }
