@@ -74,16 +74,14 @@ impl Player for EnginePlayer {
         self.board.undo(m);
     }
     fn generate_move(&mut self) -> Turn {
-        if self.random_opening {
-            if self.board.turn_num < 2 {
-                loop {
-                    let mut random_strategy = Random::<Rules>::default();
-                    let turn = random_strategy.choose_move(&self.board).unwrap();
-                    if let Turn::Place(_, bug) = turn {
-                        if matches!(bug, Bug::Ant | Bug::Grasshopper | Bug::Beetle | Bug::Spider) {
-                            return turn;
-                        }
-                    }
+        if self.random_opening && self.board.turn_num < 2 {
+            loop {
+                let mut random_strategy = Random::<Rules>::default();
+                let turn = random_strategy.choose_move(&self.board).unwrap();
+                if let Turn::Place(_, bug) = turn
+                    && matches!(bug, Bug::Ant | Bug::Grasshopper | Bug::Beetle | Bug::Spider)
+                {
+                    return turn;
                 }
             }
         }
@@ -133,6 +131,15 @@ pub fn configure_players() -> Result<(PlayerConfig, PlayerConfig, Vec<String>), 
     if args.contains("--player2-verbose") {
         config2.opts = config2.opts.verbose();
     }
+    let table_size1: Option<usize> = args.opt_value_from_str("--player1-table_mb")?;
+    if let Some(table_size1) = table_size1 {
+        config1.opts.table_byte_size = table_size1.checked_shl(20).unwrap();
+    }
+    let table_size2: Option<usize> = args.opt_value_from_str("--player2-table_mb")?;
+    if let Some(table_size2) = table_size2 {
+        config2.opts.table_byte_size = table_size2.checked_shl(20).unwrap();
+    }
+
     let window_arg: Option<u32> = args.opt_value_from_str("--player1-aspiration-window")?;
     if let Some(window) = window_arg {
         config1.opts = config1

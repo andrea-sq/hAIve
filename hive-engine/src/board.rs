@@ -1,7 +1,6 @@
 use crate::bug::Bug;
 use crate::hexset::HexSet;
 use bitfield::bitfield;
-use color_eyre::owo_colors::OwoColorize;
 use hexx::storage::HexModMap;
 use hexx::{EdgeDirection, Hex, HexBounds};
 use minimax::Winner;
@@ -38,9 +37,9 @@ impl TryFrom<u8> for Color {
     }
 }
 
-impl Into<u8> for Color {
-    fn into(self) -> u8 {
-        self as u8
+impl From<Color> for u8 {
+    fn from(value: Color) -> Self {
+        value as u8
     }
 }
 
@@ -134,9 +133,8 @@ pub struct Board {
 
 impl Board {
     pub fn find_id(&self, hex: Hex) -> usize {
-        return hex
-            .const_sub(self.nodes.bounds().center)
-            .to_hexmod_coordinates(self.nodes.bounds().radius) as usize;
+        hex.const_sub(self.nodes.bounds().center)
+            .to_hexmod_coordinates(self.nodes.bounds().radius) as usize
     }
 
     pub fn adjacent(&self, hex: Hex) -> [Hex; 6] {
@@ -163,7 +161,7 @@ impl Board {
         let id_hex = hex
             .const_sub(self.nodes.bounds().center)
             .to_hexmod_coordinates(self.nodes.bounds().radius) as usize;
-        let hash = self.zorbist_table[((id_hex << 1) | color as usize)];
+        let hash = self.zorbist_table[(id_hex << 1) | color as usize];
         hash.rotate_left(((height as u32) << 3) | bug as u32)
     }
 
@@ -182,7 +180,7 @@ impl Board {
                 .iter()
                 .rev()
                 .find(|under| under.hex == hex)
-                .and_then(|under| Some(under.height))
+                .map(|under| under.height)
                 .unwrap_or(0)
         } else {
             height
@@ -335,7 +333,7 @@ impl Board {
             table
         });
         Self {
-            nodes: HexModMap::new(START_HEX, GRID_RADIUS as u32, |coord| Node(0)),
+            nodes: HexModMap::new(START_HEX, GRID_RADIUS as u32, |_| Node(0)),
             underworld: [UnderNode::empty(); 8],
             underworld_size: 0,
             remaining: [remaining; 2],
@@ -880,6 +878,14 @@ impl minimax::Game for Rules {
         }
     }
 
+    fn apply(board: &mut Self::S, turn: Self::M) -> Option<Self::S> {
+        board.apply(turn);
+        None
+    }
+
+    fn undo(board: &mut Self::S, turn: Self::M) {
+        board.undo(turn);
+    }
     fn get_winner(board: &Self::S) -> Option<Winner> {
         let queens_surrounded = board.queens_surrounded();
         let n = board.zorbist_history.len();
@@ -894,27 +900,19 @@ impl minimax::Game for Rules {
                 .filter(|&&hash| hash == board.zorbist_hash)
                 .count();
             if position_repeat_count >= 2 {
-                return Some(minimax::Winner::Draw);
+                return Some(Winner::Draw);
             }
         }
 
         if queens_surrounded == [6, 6] {
-            Some(minimax::Winner::Draw)
+            Some(Winner::Draw)
         } else if queens_surrounded[board.to_move() as usize] == 6 {
-            Some(minimax::Winner::PlayerJustMoved)
+            Some(Winner::PlayerJustMoved)
         } else if queens_surrounded[board.to_move().other() as usize] == 6 {
-            Some(minimax::Winner::PlayerToMove)
+            Some(Winner::PlayerToMove)
         } else {
             None
         }
-    }
-
-    fn apply(board: &mut Self::S, turn: Self::M) -> Option<Self::S> {
-        board.apply(turn);
-        None
-    }
-    fn undo(board: &mut Self::S, turn: Self::M) {
-        board.undo(turn);
     }
     fn zobrist_hash(board: &Self::S) -> u64 {
         let mut hash = board.zorbist_hash;
@@ -929,9 +927,34 @@ impl minimax::Game for Rules {
         Some(Turn::Pass)
     }
 
-    // TODO: Notation
+    fn notation(board: &Self::S, turn: Self::M) -> Option<String> {
+        Some(board.to_move_string(turn))
+    }
 
-    // TODO: Table index
+    fn table_index(turn: Self::M) -> u16 {
+        let hex_bounds = HexBounds::new(START_HEX, GRID_RADIUS as u32);
+
+        // Arbitrary mask
+        const MASK: u16 = 0x7f;
+        match turn {
+            Turn::Place(hex, bug) => {
+                let hex_id = hex
+                    .const_sub(START_HEX)
+                    .to_hexmod_coordinates(GRID_RADIUS as u32);
+                ((bug as u16) << 7) | hex_id as u16 & MASK
+            }
+            Turn::Move(start, end) => {
+                let start_id = start
+                    .const_sub(START_HEX)
+                    .to_hexmod_coordinates(GRID_RADIUS as u32);
+                let end_id = end
+                    .const_sub(START_HEX)
+                    .to_hexmod_coordinates(GRID_RADIUS as u32);
+                ((start_id as u16 & MASK) << 7) | (end_id as u16 & MASK)
+            }
+            Turn::Pass => 0,
+        }
+    }
 
     fn max_table_index() -> u16 {
         u16::MAX >> 2
@@ -982,10 +1005,10 @@ mod tests {
         fn assert_movements(&self, turns: &[Turn], start: Hex, ends: &[Hex]) {
             let mut actual_ends = Vec::new();
             for &m in turns.iter() {
-                if let Turn::Move(actual_start, actual_end) = m {
-                    if actual_start == start {
-                        actual_ends.push(actual_end);
-                    }
+                if let Turn::Move(actual_start, actual_end) = m
+                    && actual_start == start
+                {
+                    actual_ends.push(actual_end);
                 }
             }
             let sorting_function = |&a: &Hex, &b: &Hex| self.find_id(a).cmp(&self.find_id(b));
@@ -1366,7 +1389,7 @@ mod tests {
         assert_eq!(2, turns.len());
         board.assert_movements(&turns, hex(0, 0), &[hex(1, 0), hex(1, 1)]);
 
-        // Create a level-2 gate to prevent one destination to being thrown to.
+        // Create a level-2 gate to prevent one destination from being thrown to.
         board.insert_loc(hex(1, 0), Bug::Pillbug, Color::Black);
         board.insert_loc(hex(1, 0), Bug::Pillbug, Color::Black);
         board.remove_loc(hex(-1, 1));
@@ -1410,13 +1433,18 @@ mod tests {
         assert_eq!(None, Rules::get_winner(&board));
         // Recreate position for the third time.
         board.apply(Turn::Move(y2, y1));
-        assert_eq!(Some(minimax::Winner::Draw), Rules::get_winner(&board));
+        assert_eq!(Some(Winner::Draw), Rules::get_winner(&board));
         // Undo reverts zobrist and history.
         board.undo(Turn::Move(y2, y1));
         assert_eq!(None, Rules::get_winner(&board));
         // Redo re-reverts draw state.
         board.apply(Turn::Move(y2, y1));
-        assert_eq!(Some(minimax::Winner::Draw), Rules::get_winner(&board));
+        assert_eq!(Some(Winner::Draw), Rules::get_winner(&board));
     }
-    // TODO: Test winner5
+    #[test]
+    fn test_winner5() {
+        // Regression test for issue #5.
+        let board = Board::from_game_string(r"Base;InProgress;black[11];wA1;bA1 wA1-;wQ /wA1;bQ bA1/;wS1 /wQ;bS1 bQ-;wS2 wQ\;bS2 bS1\;wS1 wS2-;bB1 /bS2;wA2 -wA1;bA2 bA1-;wB1 \wA1;bB1 bA2;wB1 wA2;bB1 bQ;wB1 wQ;bB1 \bB1;wB1 wB1-;bB1 bQ;wB1 wQ").unwrap();
+        assert_eq!(None, Rules::get_winner(&board));
+    }
 }

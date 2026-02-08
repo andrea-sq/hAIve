@@ -8,7 +8,7 @@ pub struct DumbEvaluator;
 impl Evaluator for DumbEvaluator {
     type G = Rules;
 
-    fn evaluate(&self, s: &<Self::G as Game>::S) -> Evaluation {
+    fn evaluate(&self, _s: &<Self::G as Game>::S) -> Evaluation {
         0
     }
 }
@@ -160,14 +160,13 @@ impl Evaluator for BasicEvaluator {
                 }
             }
 
-            if crawler {
-                if board
+            if crawler
+                && board
                     .slideable_adjacent(&mut buf, hex, hex)
                     .next()
                     .is_none()
-                {
-                    immovable.insert(board.find_id(hex));
-                }
+            {
+                immovable.insert(board.find_id(hex));
             }
             if node.is_stacked() {
                 bug_score *= 2;
@@ -273,29 +272,27 @@ impl Evaluator for BasicEvaluator {
         let enemy_last_move = board.turn_history[board.turn_history.len() - 1];
         let my_last_move = board.turn_history[board.turn_history.len() - 2];
 
-        if let Turn::Place(hex, _) = my_last_move {
-            if !board
+        if let Turn::Place(hex, _) = my_last_move
+            && !board
                 .adjacent(board.queens[board.to_move().other() as usize])
                 .contains(&hex)
-            {
-                board.generate_movements(moves);
-                moves.retain(|m| {
-                    if let Turn::Move(start, _) = *m {
-                        start == hex
-                    } else {
-                        false
-                    }
-                });
-                return;
-            }
+        {
+            board.generate_movements(moves);
+            moves.retain(|m| {
+                if let Turn::Move(start, _) = *m {
+                    start == hex
+                } else {
+                    false
+                }
+            });
+            return;
         }
-        if let Turn::Place(hex, _) = enemy_last_move {
-            if !board
+        if let Turn::Place(hex, _) = enemy_last_move
+            && !board
                 .adjacent(board.queens[board.to_move() as usize])
                 .contains(&hex)
-            {
-                board.generate_movements(moves);
-            }
+        {
+            board.generate_movements(moves);
         }
     }
 }
@@ -332,11 +329,11 @@ mod tests {
         board.apply(Turn::Pass);
         for depth in 1..3 {
             let mut strategy = Negamax::new(DumbEvaluator {}, depth);
-            let m = strategy.choose_move(&mut board);
+            let m = strategy.choose_move(&board);
             assert_eq!(Some(Turn::Move(loc_to_hex((-1, 1)), loc_to_hex((2, 1)))), m);
 
             let mut strategy = Negamax::new(BasicEvaluator::default(), depth);
-            let m = strategy.choose_move(&mut board);
+            let m = strategy.choose_move(&board);
             assert_eq!(Some(Turn::Move(loc_to_hex((-1, 1)), loc_to_hex((2, 1)))), m);
         }
 
@@ -352,7 +349,7 @@ mod tests {
         board.apply(Turn::Pass);
         for depth in 1..3 {
             let mut strategy = Negamax::new(BasicEvaluator::default(), depth);
-            let m = strategy.choose_move(&mut board);
+            let m = strategy.choose_move(&board);
             assert_eq!(Some(Turn::Move(loc_to_hex((0, 0)), loc_to_hex((1, -1)))), m);
         }
     }

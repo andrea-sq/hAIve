@@ -6,7 +6,7 @@ use std::io::Error;
 
 #[derive(Debug)]
 pub enum UhpError {
-    IoError(std::io::Error),
+    IoError(Error),
     UnknownPiece(String),
     InvalidGameString(String),
     InvalidGameType(String),
@@ -18,7 +18,7 @@ pub enum UhpError {
     TooManyUndos,
 }
 
-impl From<std::io::Error> for UhpError {
+impl From<Error> for UhpError {
     fn from(value: Error) -> Self {
         UhpError::IoError(value)
     }
@@ -73,7 +73,7 @@ impl Board {
             .iter()
             .map(|&dir| (dir, self.neighbor(hex, dir)))
         {
-            if (self.occupied(adj)) {
+            if self.occupied(adj) {
                 out.push_str(match dir {
                     EdgeDirection::POINTY_SOUTH_EAST => "\\",
                     EdgeDirection::POINTY_EAST => "-",
@@ -147,7 +147,7 @@ impl Board {
         let ladybug = self.game_type_bits & (1 << Bug::Ladybug as usize) != 0;
         let pillbug = self.game_type_bits & (1 << Bug::Pillbug as usize) != 0;
         if mosquito || ladybug || pillbug {
-            game_type.push_str("+");
+            game_type.push('+');
         }
         if mosquito {
             game_type.push('M');
@@ -290,10 +290,10 @@ impl Board {
                 hex
             }
         };
-        if let Some(start) = start {
-            if self.occupied(start) {
-                return Ok(Turn::Move(start, end));
-            }
+        if let Some(start) = start
+            && self.occupied(start)
+        {
+            return Ok(Turn::Move(start, end));
         }
         if color != self.to_move() {
             return Err(err());
