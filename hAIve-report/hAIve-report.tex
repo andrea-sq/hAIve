@@ -33,14 +33,26 @@
 	showstringspaces=false
 }
 
+% Activate fancy page style
+\pagestyle{fancy}
+
+% Clear default headers and footers
+\fancyhf{}
+
+% Create footer line and remove header line
+\renewcommand{\headrulewidth}{0 px}
+\renewcommand{\footrulewidth}{0.2 px}
+
+% Configurazione maketitle
 \title{\textbf{HAIVE}}
 \author{an AI for the bug-themed strategy game}
 \date{\today}
 
 \begin{document}
-	
+
 	% --- FRONTESPIZIO ---
 	\begin{titlepage}
+
 
 		\noindent
 		\begin{minipage}[c]{0.25\textwidth}
@@ -59,17 +71,14 @@
 		\centering
 		\vspace{1cm}
 
-
     	\begin{figure} [hbt!]
-		\centering
-		\includegraphics[width=0.3\textwidth]{logo.png} 
-		\maketitle
-
+			\centering
+			\includegraphics[width=0.3\textwidth]{logo.png} 
+			\maketitle
 		\end{figure}
 
 		\vspace{1cm}
-		\textbf{Partecipanti:} \par
-		\vspace{0.5cm}
+		
 		\begin{tabular}{l r}
 			\textbf{Autore} & \textbf{Matricola} \\
 			\hline
@@ -81,13 +90,15 @@
 
 		\vspace{2cm}
 		\textbf{LINK GITHUB:} \url{https://github.com/andrea-sq/hAIve}
-		
 
-		
-		
-		
+		\thispagestyle{empty}
 	\end{titlepage}
 	
+	%HEADER + FOOTER SETUP
+	
+	\fancyfoot[L]{HAIVE}
+	\fancyfoot[R]{G. Forte, M. Rega, S. Russo, A. Squitieri\hspace{4mm} \textbf{\thepage}}
+
 	% --- SOMMARIO / INDICE ---
 	\tableofcontents
 	\newpage
@@ -95,6 +106,8 @@
 	% --- CONTENUTO ---
 	
 	\section{Introduzione}
+
+
 	\section{Descrizione dell'agente/problema}
 		\subsection{Obiettivi}
 		\subsection{Specifiche PEAS}
