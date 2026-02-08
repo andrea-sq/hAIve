@@ -19,4 +19,7 @@ mod battle_mod;
 pub use battle_mod::*;
 
 mod uhp_client;
+mod hexset;
+
+
 pub use uhp_client::*;

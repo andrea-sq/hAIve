@@ -1,4 +1,4 @@
-use crate::board::{adjacent, neighbor, Board, Color, Rules, Turn, START_HEX};
+use crate::board::{Board, Color, Rules, Turn, START_HEX};
 use crate::bug::Bug;
 use hexx::{EdgeDirection, Hex};
 use minimax::{Evaluation, Evaluator, Game};
@@ -59,14 +59,16 @@ impl Default for BasicEvaluator {
 }
 
 fn count_liberties(board: &Board, origin: Hex, hex: Hex) -> Evaluation {
-    adjacent(hex, *board.nodes.bounds())
+    board
+        .adjacent(hex)
         .into_iter()
         .filter(|&adj| adj == origin || !board.occupied(adj))
         .count() as Evaluation
 }
 
 fn placeable(board: &Board, hex: Hex, color: Color) -> bool {
-    !adjacent(hex, *board.nodes.bounds())
+    !board
+        .adjacent(hex)
         .iter()
         .any(|&adj| board.occupied(adj) && board.node(adj).get_color().unwrap() != color)
 }
@@ -77,56 +79,32 @@ fn test_placeable() {
 
     assert!(!placeable(
         &b,
-        neighbor(
-            START_HEX,
-            EdgeDirection::POINTY_SOUTH_EAST,
-            *b.nodes.bounds()
-        ),
+        b.neighbor(START_HEX, EdgeDirection::POINTY_SOUTH_EAST),
         Color::White
     ));
     assert!(!placeable(
         &b,
-        neighbor(
-            START_HEX,
-            EdgeDirection::POINTY_NORTH_EAST,
-            *b.nodes.bounds()
-        ),
+        b.neighbor(START_HEX, EdgeDirection::POINTY_NORTH_EAST),
         Color::White
     ));
     assert!(placeable(
         &b,
-        neighbor(
-            START_HEX,
-            EdgeDirection::POINTY_NORTH_WEST,
-            *b.nodes.bounds()
-        ),
+        b.neighbor(START_HEX, EdgeDirection::POINTY_NORTH_WEST),
         Color::White
     ));
     assert!(!placeable(
         &b,
-        neighbor(
-            START_HEX,
-            EdgeDirection::POINTY_SOUTH_EAST,
-            *b.nodes.bounds()
-        ),
+        b.neighbor(START_HEX, EdgeDirection::POINTY_SOUTH_EAST),
         Color::Black
     ));
     assert!(!placeable(
         &b,
-        neighbor(
-            START_HEX,
-            EdgeDirection::POINTY_NORTH_EAST,
-            *b.nodes.bounds()
-        ),
+        b.neighbor(START_HEX, EdgeDirection::POINTY_NORTH_EAST),
         Color::Black
     ));
     assert!(!placeable(
         &b,
-        neighbor(
-            START_HEX,
-            EdgeDirection::POINTY_NORTH_WEST,
-            *b.nodes.bounds()
-        ),
+        b.neighbor(START_HEX, EdgeDirection::POINTY_NORTH_WEST),
         Color::Black
     ));
 }
@@ -165,7 +143,7 @@ impl Evaluator for BasicEvaluator {
                 if node.is_stacked() {
                     bug_score = self.value(Bug::Beetle);
                 } else {
-                    for adj in adjacent(hex, *board.nodes.bounds()) {
+                    for adj in board.adjacent(hex) {
                         if board.occupied(adj) {
                             let bug = board.node(adj).get_bug().unwrap();
                             if bug != Bug::Queen {
@@ -188,7 +166,7 @@ impl Evaluator for BasicEvaluator {
                     .next()
                     .is_none()
                 {
-                    immovable.insert(hex);
+                    immovable.insert(board.find_id(hex));
                 }
             }
             if node.is_stacked() {
@@ -197,15 +175,16 @@ impl Evaluator for BasicEvaluator {
             let friendly_queen = board.queens[node.get_color().unwrap() as usize];
 
             // TODO: Transpose this out of the loop
-            if adjacent(friendly_queen, *board.nodes.bounds()).contains(&hex) {
-                if immovable.contains(&hex) && !node.is_stacked() {
+            if board.adjacent(friendly_queen).contains(&hex) {
+                if immovable.contains(board.find_id(hex)) && !node.is_stacked() {
                     queen_score[node.get_color().unwrap() as usize] -= self.queen_liberty_factor;
                 } else {
                     queen_score[node.get_color().unwrap() as usize] -=
                         self.queen_liberty_factor / 2;
                 }
                 if pillbug_powers && board.node(friendly_queen).get_tile_height() == 1 {
-                    let best_escape = adjacent(hex, *board.nodes.bounds())
+                    let best_escape = board
+                        .adjacent(hex)
                         .into_iter()
                         .map(|lib| {
                             if board.occupied(lib) {
@@ -223,12 +202,13 @@ impl Evaluator for BasicEvaluator {
             }
             let enemy_queen = board.queens[node.get_color().unwrap().other() as usize];
 
-            if adjacent(enemy_queen, *board.nodes.bounds()).contains(&hex) {
+            if board.adjacent(enemy_queen).contains(&hex) {
                 bug_score = 0;
                 queen_score[node.get_color().unwrap().other() as usize] -=
                     self.queen_liberty_factor * 12 / 10;
                 if pillbug_powers {
-                    let best_unescape = adjacent(hex, *board.nodes.bounds())
+                    let best_unescape = board
+                        .adjacent(hex)
                         .into_iter()
                         .map(|lib| {
                             if board.occupied(lib) {
@@ -245,7 +225,7 @@ impl Evaluator for BasicEvaluator {
                     }
                 }
             }
-            if !node.is_stacked() && immovable.contains(&hex) {
+            if !node.is_stacked() && immovable.contains(board.find_id(hex)) {
                 continue;
             }
             bug_score *= self.movable_bug_factor;
@@ -266,7 +246,8 @@ impl Evaluator for BasicEvaluator {
         for &color in &[Color::White, Color::Black] {
             if board.node(board.queens[color as usize]).get_tile_height() == 1
                 && board.remaining[color as usize][Bug::Pillbug as usize] > 0
-                && adjacent(board.queens[color as usize], *board.nodes.bounds())
+                && board
+                    .adjacent(board.queens[color as usize])
                     .iter()
                     .any(|&lib| placeable(board, lib, color))
             {
@@ -293,11 +274,9 @@ impl Evaluator for BasicEvaluator {
         let my_last_move = board.turn_history[board.turn_history.len() - 2];
 
         if let Turn::Place(hex, _) = my_last_move {
-            if !adjacent(
-                board.queens[board.to_move().other() as usize],
-                *board.nodes.bounds(),
-            )
-            .contains(&hex)
+            if !board
+                .adjacent(board.queens[board.to_move().other() as usize])
+                .contains(&hex)
             {
                 board.generate_movements(moves);
                 moves.retain(|m| {
@@ -311,11 +290,9 @@ impl Evaluator for BasicEvaluator {
             }
         }
         if let Turn::Place(hex, _) = enemy_last_move {
-            if !adjacent(
-                board.queens[board.to_move() as usize],
-                *board.nodes.bounds(),
-            )
-            .contains(&hex)
+            if !board
+                .adjacent(board.queens[board.to_move() as usize])
+                .contains(&hex)
             {
                 board.generate_movements(moves);
             }

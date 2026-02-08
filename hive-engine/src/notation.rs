@@ -1,4 +1,4 @@
-use crate::board::{neighbor, Board, Color, Node, Rules, Turn, START_HEX};
+use crate::board::{Board, Color, Node, Rules, Turn, START_HEX};
 use crate::bug::Bug;
 use hexx::{EdgeDirection, Hex};
 use minimax::Game;
@@ -71,7 +71,7 @@ impl Board {
         }
         for (dir, adj) in EdgeDirection::ALL_DIRECTIONS
             .iter()
-            .map(|&dir| (dir, neighbor(hex, dir, *self.nodes.bounds())))
+            .map(|&dir| (dir, self.neighbor(hex, dir)))
         {
             if (self.occupied(adj)) {
                 out.push_str(match dir {
@@ -285,8 +285,7 @@ impl Board {
             let (color, bug, bug_num, dir) = self.parse_piece_name(tokens[1]).ok_or_else(err)?;
             let hex = self.find_bug(color, bug, bug_num).ok_or_else(err)?;
             if let Some(dir) = dir {
-                // TODO: Here in the notation section it might be incorrect to use these kind of functions (neighbors and adjacent)
-                neighbor(hex, dir, *self.nodes.bounds())
+                self.neighbor(hex, dir)
             } else {
                 hex
             }
