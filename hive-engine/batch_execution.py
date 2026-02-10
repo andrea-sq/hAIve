@@ -48,6 +48,18 @@ def run_battle(
         "1",
         "--player2-num-threads",
         "1",
+        "--player1-table_mb",
+        "2048",
+        "--player2-table_mb",
+        "2048",
+        "--player1-double-step",
+        "--player2-double-step",
+        "--player1-null-move-pruning",
+        "--player2-null-move-pruning",
+        "--player1-quiet-search",
+        "--player2-quiet-search",
+        "--player1-background-ponder",
+        "--player2-background-ponder",
     ]
     try:
         result = subprocess.run(
@@ -84,14 +96,14 @@ def run_battle(
 
 
 def main():
-    agent1_path = "/home/andrea/Documents/Projects/University/FIA/project/Mzinga.LinuxX64/MzingaEngine"  # Replace with actual path
+    agent1_path = "ai"  # Replace with actual path
     agent2_path = "ai"  # Replace with actual path
-    num_matches = 10
+    num_matches = 10000
     game_type = "Base+MLP"
 
     results = []
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=28) as executor:
         futures = [
             executor.submit(
                 run_battle,
@@ -100,6 +112,7 @@ def main():
                 game_type,
                 verbose=True,
                 strategy1="random",
+                strategy2="random"
             )
             for _ in range(num_matches)
         ]

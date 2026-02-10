@@ -10,14 +10,10 @@ use std::hash::{DefaultHasher, Hasher};
 use std::sync::OnceLock;
 
 pub(crate) const START_HEX: Hex = Hex::ZERO;
-pub(crate) const GRID_RADIUS: usize = 18;
-pub(crate) const GRID_SIZE: usize = 1027;
+pub(crate) const GRID_RADIUS: usize = 14;
+pub(crate) const GRID_SIZE: usize = 631;
 
 static ZOBRIST_TABLE: OnceLock<[u64; GRID_SIZE * 2]> = OnceLock::new();
-
-pub fn neighbor(hex: Hex, dir: EdgeDirection, hex_bounds: HexBounds) -> Hex {
-    hex.neighbor(dir).const_sub(hex_bounds.center)
-}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Color {
@@ -133,20 +129,19 @@ pub struct Board {
 
 impl Board {
     pub fn find_id(&self, hex: Hex) -> usize {
-        hex.const_sub(self.nodes.bounds().center)
-            .to_hexmod_coordinates(self.nodes.bounds().radius) as usize
+        let new_hex = self.nodes.bounds().wrap(hex);
+        new_hex.to_hexmod_coordinates(self.nodes.bounds().radius) as usize
     }
 
     pub fn adjacent(&self, hex: Hex) -> [Hex; 6] {
         let hex_bounds = self.nodes.bounds();
         let mut res = hex.all_neighbors();
-        res.iter_mut()
-            .for_each(|h| *h = h.const_sub(hex_bounds.center));
+        res.iter_mut().for_each(|h| *h = hex_bounds.wrap(*h));
         res
     }
     pub fn neighbor(&self, hex: Hex, dir: EdgeDirection) -> Hex {
         let hex_bounds = self.nodes.bounds();
-        hex.neighbor(dir).const_sub(hex_bounds.center)
+        hex_bounds.wrap(hex.neighbor(dir))
     }
 
     pub fn to_move(&self) -> Color {
@@ -158,15 +153,17 @@ impl Board {
     }
 
     fn zorbist(&self, hex: Hex, bug: Bug, color: Color, height: u8) -> u64 {
-        let id_hex = hex
-            .const_sub(self.nodes.bounds().center)
+        let id_hex = self
+            .nodes
+            .bounds()
+            .wrap(hex)
             .to_hexmod_coordinates(self.nodes.bounds().radius) as usize;
         let hash = self.zorbist_table[(id_hex << 1) | color as usize];
         hash.rotate_left(((height as u32) << 3) | bug as u32)
     }
 
     pub(crate) fn node(&self, hex: Hex) -> Node {
-        self.nodes[hex]
+        self.nodes[self.nodes.bounds().wrap(hex)]
     }
 
     pub fn get_underworld(&self) -> &[UnderNode] {

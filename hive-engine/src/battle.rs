@@ -21,6 +21,6 @@ fn main() {
     let player2 = args.get(1).map(|s| s.as_str()).unwrap_or("ai");
 
     play_game(
-        config1, config2, &game_type, &player1, &player2, depth, timeout, verbose,
+        config1, config2, &game_type, player1, player2, depth, timeout, verbose,
     );
 }
