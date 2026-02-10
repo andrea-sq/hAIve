@@ -20,6 +20,6 @@ pub use battle_mod::*;
 
 mod uhp_client;
 mod hexset;
-
+mod nnue_board;
 
 pub use uhp_client::*;
