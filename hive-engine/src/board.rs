@@ -1,5 +1,6 @@
 use crate::bug::Bug;
 use crate::hexset::HexSet;
+use crate::nnue_board::NNUEBoard;
 use bitfield::bitfield;
 use hexx::storage::HexModMap;
 use hexx::{EdgeDirection, Hex, HexBounds};
@@ -112,6 +113,7 @@ impl UnderNode {
 #[derive(Clone, Debug)]
 pub struct Board {
     pub(crate) nodes: HexModMap<Node>,
+    pub(crate) nnue_board: NNUEBoard,
     underworld: [UnderNode; 8],
     underworld_size: usize,
     pub(crate) remaining: [[u8; 8]; 2],
@@ -228,6 +230,20 @@ impl Board {
         }
         let tile_height = min(3, prev.get_tile_height() + 1);
         self.nodes[hex] = Node::new_occupied(bug, color, bug_num, tile_height);
+
+        //NNUE board snippet
+        for dir in EdgeDirection::ALL_DIRECTIONS.iter() {
+            let nb = self.neighbor(hex, *dir);
+            if self.occupied(nb) {
+                self.nnue_board
+                    .set_connection(self.nodes[hex], self.nodes[nb], *dir);
+            }
+        }
+
+        let height = self.height(hex);
+        if height > 1 {
+            self.nnue_board.set_height(self.nodes[hex], height as usize);
+        }
         self.zorbist_hash ^= self.zorbist(hex, bug, color, self.height(hex));
 
         if bug == Bug::Queen {
@@ -258,6 +274,18 @@ impl Board {
     fn remove(&mut self, hex: Hex) -> (Bug, u8, Color) {
         let height = self.height(hex);
         let prev = self.node(hex);
+        let old_node = self.nodes[hex];
+        //NNUE board snippet
+        for dir in EdgeDirection::ALL_DIRECTIONS.iter() {
+            let nb = self.neighbor(hex, *dir);
+            if self.occupied(nb) {
+                self.nnue_board
+                    .unset_connection(old_node, self.nodes[nb], *dir);
+            }
+        }
+        if height > 1 {
+            self.nnue_board.set_height(old_node, 1);
+        }
         let new_node = if height > 1 {
             self.remove_underworld(hex)
         } else {
@@ -331,6 +359,7 @@ impl Board {
         });
         Self {
             nodes: HexModMap::new(START_HEX, GRID_RADIUS as u32, |_| Node(0)),
+            nnue_board: NNUEBoard::new(),
             underworld: [UnderNode::empty(); 8],
             underworld_size: 0,
             remaining: [remaining; 2],
