@@ -56,7 +56,9 @@ impl NNUEBoard {
             (Bug::Pillbug, 1, Color::White) => 26,
             (Bug::Pillbug, 1, Color::Black) => 27,
 
-            _ => unreachable!(),
+            _ => {
+                unreachable!()
+            }
         }
     }
 
@@ -108,16 +110,16 @@ impl NNUEBoard {
     }
 
     pub fn set_height(&mut self, node: Node, height: usize) {
-        assert!(height < 7);
+        assert!(height > 0 && height < 8);
         let height_index = Self::get_height_index(node);
 
         for i in 0..6 {
             self.board[height_index + i] = false;
         }
-        if height == 0 {
+        if height == 1 {
             return;
         }
-        self.board[height_index + height - 1] = true;
+        self.board[height_index + height - 2] = true;
     }
 
     pub fn set_connection(&mut self, node_a: Node, node_b: Node, dir: EdgeDirection) {
@@ -137,6 +139,6 @@ impl NNUEBoard {
 
     pub fn get_height(&mut self, node: Node, height: usize) -> bool {
         let height_index = Self::get_height_index(node);
-        self.board[height_index + height - 1]
+        self.board[height_index + height - 2]
     }
 }
