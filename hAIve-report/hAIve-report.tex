@@ -15,7 +15,7 @@
 \usepackage{longtable}
 \usepackage{tabularx}
 \usepackage[all]{nowidow}
-\usepackage[backend=biber,style=numeric]{biblatex}
+\usepackage[backend=biber, sorting=none, style=numeric]{biblatex}
 
 \addbibresource{refs.bib}
 
@@ -125,9 +125,37 @@
 	Pertanto, la crescita esponenziale di Hive è circa due volte quella degli scacchi, il cui fattore di ramificazione è intorno al 30.\\
 	L'interesse nel creare un'intelligenza artificiale in grado di giocare ad Hive non deriva solo dall'elevata complessità, ma anche dalla scarsa notorietà del gioco che lo rende un problema non ancora esplorato esaustivamente. 
 
+	\newpage
 	\section{Descrizione del problema}
+
 		\subsection{Obiettivi}
+		Lo scopo del progetto consiste nella realizzazione di un \textbf{modello di intelligenza artificiale} in grado di sfidare un altro agente intelligente --- artificiale o umano --- nel gioco di \textit{Hive}.
+		
+		
 		\subsection{Specifiche PEAS}
+		***Mzinga \cite{mzinga} software open-source per supportare la comunità di sviluppatori che realizza IA in grado di giocare ad Hive.
+		\\
+		***euristiche
+
+		\begin{itemize}
+			\item \textbf{Performance.} Le misure adottate per valutare le prestazioni sono il \textit{tempo} per generare una mossa e le \textit{percentuali di vittoria} contro una generatore di mosse randomiche e altri agenti noti.
+			\item \textbf{Environment.} L'ambiente in cui opera l'agente è costituito dall'insieme di tutte le possibili configurazioni che l'alveare può assumere.			
+			\item \textbf{Actuators.} L'agente agisce sull'ambiente mediante la successiva mossa scelta in base alle euristiche definite.
+			\item \textbf{Sensors.} L'agente percepisce l'ambiente mediante le informazioni associate alla specifica partita, quali: mosse possibili, stato di accerchiamento delle api regine, boh
+		\end{itemize}
+
+			\subsubsection{Caratteristiche dell'ambiente}
+			L'ambiente operativo è:
+			\begin{itemize}
+			\item \textbf{Completamente osservabile.} I sensori forniscono accesso allo stato completo dell'ambiente in ogni momento.
+			\item \textbf{Deterministico.} Lo stato successivo è completamente determinato da stato corrente e dalla seguente azione scelta.
+			\item \textbf{Sequenziale.} Ogni decisione può influenzare tutte quelle successive.
+			\item \textbf{Statico.} L'ambiente rimane invariato mentre l'agente delibera.
+			\item \textbf{Discreto.} Il numero di percezioni e azioni distinte è finito.
+			\item \textbf{Multiagente competitivo} L'ambiente consente la presenza di esattamente due agenti, ognuno dei quali tenta di sconfiggere l'avversario.
+		\end{itemize}
+
+
 		\subsection{Analisi del problema}
 		
 		Le due principali regole che ogni pezzo deve rispettare sono:
