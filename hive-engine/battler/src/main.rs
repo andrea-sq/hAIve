@@ -1,4 +1,4 @@
-use hive_engine::{configure_players, play_game};
+use hive_library::{configure_players, play_game};
 use std::ffi::OsString;
 
 fn main() {

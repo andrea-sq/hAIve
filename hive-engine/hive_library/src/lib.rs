@@ -19,7 +19,10 @@ mod battle_mod;
 pub use battle_mod::*;
 
 mod uhp_client;
+pub use uhp_client::*;
 mod hexset;
+pub use hexset::*;
 mod nnue_board;
+pub use nnue_board::*;
 
 pub use uhp_client::*;

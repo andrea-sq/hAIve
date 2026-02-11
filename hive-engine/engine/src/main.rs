@@ -1,4 +1,4 @@
-use hive_engine::*;
+use hive_library::*;
 
 fn main() {
     let (config, args) = configure_player().unwrap();

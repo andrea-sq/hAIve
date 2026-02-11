@@ -1,7 +1,7 @@
 use crate::bug::Bug;
 use crate::{Color, Node};
 use hexx::EdgeDirection;
-const NNUE_BOARD: usize = 28 * 27 * 3 + 6 * 6;
+pub const NNUE_BOARD: usize = 28 * 27 * 3 + 6 * 6;
 
 #[derive(Debug, Clone)]
 pub struct NNUEBoard {

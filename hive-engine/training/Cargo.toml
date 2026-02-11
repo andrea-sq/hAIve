@@ -1,0 +1,13 @@
+[package]
+name = "training"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# Disable autotune default for convolutions
+burn = { version = "~0.20", features = ["std", "tui", "train", "vision", "wgpu", "fusion", "vulkan"], default-features = false }
+# burn = { version = "~0.20", features = ["train", "vision", "wgpu"] }
+
+[dependencies.hive_library]
+path = "../hive_library"
+
