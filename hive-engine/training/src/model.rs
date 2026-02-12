@@ -1,12 +1,13 @@
 use crate::dataset::BoardBatch;
 use burn::nn::loss::MseLoss;
 use burn::nn::loss::Reduction::Mean;
-use burn::train::RegressionOutput;
+use burn::tensor::backend::AutodiffBackend;
+use burn::train::{InferenceStep, RegressionOutput, TrainOutput, TrainStep};
 use burn::{
     nn::{Linear, LinearConfig},
     prelude::*,
 };
-use hive_library::NNUE_BOARD;
+use hive_library::{Board, NNUE_BOARD};
 
 #[derive(Module, Debug)]
 pub struct Model<B: Backend> {
@@ -71,5 +72,25 @@ impl<B: Backend> Model<B> {
             output,
             targets,
         }
+    }
+}
+
+impl<B: AutodiffBackend> TrainStep for Model<B> {
+    type Input = BoardBatch<B>;
+    type Output = RegressionOutput<B>;
+
+    fn step(&self, batch: BoardBatch<B>) -> TrainOutput<RegressionOutput<B>> {
+        let item = self.forward_step(batch);
+
+        TrainOutput::new(self, item.loss.backward(), item)
+    }
+}
+
+impl<B: Backend> InferenceStep for Model<B> {
+    type Input = BoardBatch<B>;
+    type Output = RegressionOutput<B>;
+
+    fn step(&self, batch: BoardBatch<B>) -> RegressionOutput<B> {
+        self.forward_step(batch)
     }
 }

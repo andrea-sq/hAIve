@@ -1,8 +1,10 @@
 use burn::data::dataloader::batcher::Batcher;
+use burn::data::dataset::{Dataset, InMemDataset};
 use burn::prelude::*;
 use burn::tensor::IndexingUpdateOp;
 use hive_library::NNUE_BOARD;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BoardItem {
@@ -21,6 +23,44 @@ pub struct BoardBatch<B: Backend> {
     pub black_features: Tensor<B, 2, Bool>,
     pub stm: Tensor<B, 1, Bool>,
     pub targets: Tensor<B, 1>,
+}
+
+pub struct BoardDataset {
+    dataset: InMemDataset<BoardItem>,
+}
+
+impl Dataset<BoardItem> for BoardDataset {
+    fn get(&self, index: usize) -> Option<BoardItem> {
+        self.dataset.get(index)
+    }
+
+    fn len(&self) -> usize {
+        self.dataset.len()
+    }
+}
+
+impl BoardDataset {
+    pub fn train() -> Result<Self, std::io::Error> {
+        Self::new("train")
+    }
+    pub fn validation() -> Result<Self, std::io::Error> {
+        Self::new("validation")
+    }
+    pub fn test() -> Result<Self, std::io::Error> {
+        Self::new("test")
+    }
+    fn new(split: &str) -> Result<Self, std::io::Error> {
+        let path_str = format!("dataset/{}.csv", split);
+        let path = Path::new(&path_str);
+
+        let mut rdr = csv::ReaderBuilder::new();
+        let rdr = rdr.delimiter(b'\t');
+
+        let dataset = InMemDataset::from_csv(path, rdr)?;
+        let dataset = Self { dataset };
+
+        Ok(dataset)
+    }
 }
 
 impl<B: Backend> Batcher<B, BoardItem, BoardBatch<B>> for BoardBatcher {
