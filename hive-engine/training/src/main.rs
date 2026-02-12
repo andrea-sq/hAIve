@@ -1,14 +1,15 @@
 #![recursion_limit = "256"]
+mod dataset;
 mod model;
 
 use crate::model::ModelConfig;
-use burn::backend::{Vulkan, Wgpu};
+use burn::backend::Wgpu;
 
 fn main() {
-    type MyBackend = Vulkan<f32, i32>;
+    type MyBackend = Wgpu<f32, i32>;
 
     let device = Default::default();
-    let model = ModelConfig::new(1, 3073).init::<MyBackend>(&device);
+    let model = ModelConfig::new(1, 256, 32, 1).init::<MyBackend>(&device);
 
     println!("{model}");
 }

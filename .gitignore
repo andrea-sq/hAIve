@@ -109,3 +109,4 @@ http-client.private.env.json
 .idea/vcs.xml
 /hive-engine/results.txt
 /.idea/inspectionProfiles/Project_Default.xml
+/.idea/misc.xml
