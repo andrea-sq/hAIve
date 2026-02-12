@@ -18,7 +18,6 @@ pub struct Model<B: Backend> {
 
 #[derive(Config, Debug)]
 pub struct ModelConfig {
-    num_classes: usize,
     hidden_size_1: usize,
     hidden_size_2: usize,
     output_size: usize,

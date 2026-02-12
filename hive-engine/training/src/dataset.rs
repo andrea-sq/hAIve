@@ -50,13 +50,10 @@ impl BoardDataset {
         Self::new("test")
     }
     fn new(split: &str) -> Result<Self, std::io::Error> {
-        let path_str = format!("dataset/{}.csv", split);
+        let path_str = format!("../dataset/{}.json", split);
         let path = Path::new(&path_str);
 
-        let mut rdr = csv::ReaderBuilder::new();
-        let rdr = rdr.delimiter(b'\t');
-
-        let dataset = InMemDataset::from_csv(path, rdr)?;
+        let dataset = InMemDataset::from_json_rows(path)?;
         let dataset = Self { dataset };
 
         Ok(dataset)

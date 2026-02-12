@@ -14,3 +14,7 @@ git-version = "0.3.9"
 log = "0.4.29"
 env_logger = "0.11.8"
 pico-args = "0.5.0"
+serde = { version = "1.0.228", features = ["derive"] }
+csv = "1.4.0"
+serde_json = "1.0.149"
+serde-big-array = "0.5.1"

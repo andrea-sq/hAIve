@@ -22,7 +22,10 @@ mod uhp_client;
 pub use uhp_client::*;
 mod hexset;
 pub use hexset::*;
+mod data_generation_mod;
 mod nnue_board;
+pub use data_generation_mod::*;
+
 pub use nnue_board::*;
 
 pub use uhp_client::*;
