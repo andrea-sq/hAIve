@@ -3,6 +3,9 @@ use crate::{Color, Node};
 use hexx::EdgeDirection;
 pub const NNUE_BOARD: usize = 28 * 27 * 3 + 6 * 6;
 
+// TODO: Probably this is a bit larger than needed
+pub const MAX_ACTIVE_FEATURES: usize = 28 * 3 + 6;
+
 #[derive(Debug, Clone)]
 pub struct NNUEBoard {
     board: [bool; NNUE_BOARD],

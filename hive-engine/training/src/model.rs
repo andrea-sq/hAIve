@@ -1,3 +1,7 @@
+use crate::dataset::BoardBatch;
+use burn::nn::loss::MseLoss;
+use burn::nn::loss::Reduction::Mean;
+use burn::train::RegressionOutput;
 use burn::{
     nn::{Linear, LinearConfig},
     prelude::*,
@@ -39,16 +43,33 @@ impl ModelConfig {
 impl<B: Backend> Model<B> {
     pub fn forward(
         &self,
-        white_features: Tensor<B, 2>,
-        black_features: Tensor<B, 2>,
-        stm: bool,
+        white_features: Tensor<B, 2, Bool>,
+        black_features: Tensor<B, 2, Bool>,
+        stm: Tensor<B, 1, Bool>,
     ) -> Tensor<B, 2> {
-        let w = self.features_layer.forward(white_features);
-        let b = self.features_layer.forward(black_features);
-        let accumulator = (Tensor::cat(vec![w.clone(), b.clone()], 1) * stm)
-            + (Tensor::cat(vec![b, w], 1) * !stm);
+        let w = self.features_layer.forward(white_features.float());
+        let b = self.features_layer.forward(black_features.float());
+        let wb_tensor = Tensor::cat(vec![w.clone(), b.clone()], 1);
+        let bw_tensor = Tensor::cat(vec![w.clone(), b.clone()], 1);
+        // TODO: Check that unsqueeze_dim and expand is correct
+        let mask = stm.clone().unsqueeze::<2>().expand(wb_tensor.shape());
+
+        let accumulator =
+            wb_tensor.mask_fill(mask.clone().bool_not(), 0) + bw_tensor.mask_fill(mask, 0);
         let l1_x = accumulator.clamp(0.0, 1.0);
         let l2_x = self.l1_layer.forward(l1_x).clamp(0.0, 1.0);
         self.l2_layer.forward(l2_x)
+    }
+
+    pub fn forward_step(&self, item: BoardBatch<B>) -> RegressionOutput<B> {
+        let output = self.forward(item.white_features, item.black_features, item.stm);
+        // TODO: Check that unsqueeze_dim is correct
+        let targets = item.targets.unsqueeze_dim(1);
+        let loss = MseLoss::new().forward(output.clone(), targets.clone(), Mean);
+        RegressionOutput {
+            loss,
+            output,
+            targets,
+        }
     }
 }

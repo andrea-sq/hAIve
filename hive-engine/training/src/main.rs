@@ -1,6 +1,7 @@
 #![recursion_limit = "256"]
 mod dataset;
 mod model;
+mod training;
 
 use crate::model::ModelConfig;
 use burn::backend::Wgpu;
