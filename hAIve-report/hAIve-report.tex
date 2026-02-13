@@ -118,7 +118,7 @@
 
 	Rientra nei giochi deterministici ad informazione perfetta e a somma zero, tuttavia, a differenza di esempi più celebri come il gioco degli scacchi, non possiede una plancia e può essere svolto su qualsiasi superficie piana.\\
 	In seguito alla più recente espansione, il numero totale di pezzi è 28, 
-	di cui 14 neri e 14 bianchi, raffiguranti un insieme di insetti, aracnidi e isopodi, ognuno con un modo particolare di muoversi.
+	di cui 14 bianchi e 14 neri, raffiguranti un insieme di insetti, aracnidi e isopodi, ognuno con un modo particolare di muoversi.
 	L'obiettivo è catturare l'\textit{ape regina} avversaria, facendo sì che sia completamente circondata da altri pezzi.
 
 	\textbf{Perché Hive?} Un'analisi del branching-factor \cite{ai_for_hive} mostra che, negli stadi più avanzati del gioco, il fattore di ramificazione è stabile a 60. 
@@ -155,28 +155,61 @@
 			\item \textbf{Multiagente competitivo} L'ambiente consente la presenza di esattamente due agenti, ognuno dei quali tenta di sconfiggere l'avversario.
 		\end{itemize}
 
-
+		\newpage
 		\subsection{Analisi del problema}
-		
-		Le due principali regole che ogni pezzo deve rispettare sono:
+
+		Il gioco è costituito da poche e semplici regole, di seguito riassunte per facilitare la comprensibilità del problema.
 		\begin{itemize}
+			\item Ad ogni turno un giocatore potrà eseguire una delle due possibili mosse:
+			\begin{enumerate}
+				\item Far entrare in gioco un insetto (finché ne restano a disposizione);
+				\item Muovere un insetto già posizionato (se in grado di farlo).
+			\end{enumerate}
+
+			\item Facendo entrare in gioco un insetto, lo si deve posizionare in modo che nessuno dei suoi lati tocchi un insetto del colore avversario già posizionato, ma unicamente insetti del proprio colore. (Fa eccezione la prima mossa di ogni giocatore).
+			
+			\item L'ape regina deve entrare in gioco entro il quarto turno e, in mancanza di essa, i pezzi in gioco non possono muoversi.
+			
+			\item Se un giocatore non può muovere un suo pezzo in campo né aggiungerne di nuovi, passa il turno all'avversario: il gioco continua in questo modo finché il primo giocatore non è nuovamente in grado di fare la sua mossa.
+
 			\item \textit{One Hive Rule}: i pezzi in gioco devono essere costantemente connessi, non è mai possibile dividere l'alveare in due o più parti;\\
 			\begin{center}
 			\includegraphics[width=0.5\linewidth]{onehive.pdf} 
 			\end{center}
-			\item \textit{Freedom To Move}: poichè le creature si muovono scorrendo intorno all'alveare, un pezzo può muoversi da o verso una posizione solo se può fisicamente scivolare in quella direzione.\\
-			Fanno eccezione a questa regola Grillo, Coleottero, Coccinella, ed eventualmente Zanzara, che possono muoversi sopra l'alveare.\\
+
+			\item \textit{Freedom To Move}: poiché le creature si muovono scorrendo intorno all'alveare, un pezzo può muoversi da o verso una posizione solo se può fisicamente scivolare in quella direzione.\\
+			Fa eccezione a questa regola il Grillo, ed eventualmente la Zanzara quando lo imita, in quanto può saltare sopra l'alveare.\\
+			La Coccinella e lo Scarabeo sono in grado di spostarsi da o verso posizioni totalmente circondate muovendosi sopra l'alveare, ma devono comunque rispettare la regola nel caso al secondo livello vi sia un "varco stretto".
 			\begin{center}
-			\includegraphics[width=0.5\linewidth]{freedomtomove.pdf} 
-			\end{center}		
+			\includegraphics[width=0.7\linewidth]{freedomtomove.jpg} 
+			\end{center}	
 		\end{itemize}
+
+		\newpage
+		\subsection*{Rappresentazione dello stato di gioco}
+			Per modellare lo stato in cui si trova l'alveare sono state adottate due rappresentazioni distinte:
+
+			Nel caso dell'albero di ricerca Minimax, lo stato è raffigurato mediante una mappa esagonale modulare di raggio 14 (e diametro 29) che utilizza le coordinate assiali(geometriche?? idk) per identificare univocamente la posizione di ogni esagono. 
+			La scelta del raggio corriponde al più piccolo numero che permette di posizionare tutti i 28 pezzi lungo un unico asse senza che gli estremi dell'alveare risultino connessi, in modo da minimizzare la quantità di spazio necessario a memorizzare ogni stato.
+
+			Nel caso NNUE, è stato utilizzato un vettore binario che rappresenti la lista dei possibili archi e l'altezza dei pezzi che sono in grado di salire sull'alveare. 			
+
+		%\subsection*{Formalizzazione del problema}
+		
+		%\begin{itemize}
+		%	\item \textbf{Stato iniziale.} Rappresentazione dell'alveare vuoto.
+		%	\item \textbf{Azioni.} Insieme di inserzioni e spostamenti validi che l'agente può eseguire con i pezzi a disposizione in un determinato istante.
+		%	\item \textbf{Modello di transizione.} huhhhhhhhhhhhhh Deterministico
+		%	\item \textbf{Test obiettivo/Test terminazione.} Una delle due api regine è completamente circondata./L'ape regina avversaria è completamente circondata.
+		%\end{itemize}
 
 	\section{Soluzioni proposte}
 		\subsection{Minimax}
 		\subsection{Reinforcement Learning}
 
 	\section{Conclusioni finali}
-
+	
+	\newpage
 	\printbibliography
 
 \end{document}
