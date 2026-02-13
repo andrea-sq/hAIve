@@ -1,13 +1,14 @@
 use crate::dataset::BoardBatch;
 use burn::nn::loss::MseLoss;
 use burn::nn::loss::Reduction::Mean;
+use burn::tensor::activation::sigmoid;
 use burn::tensor::backend::AutodiffBackend;
 use burn::train::{InferenceStep, RegressionOutput, TrainOutput, TrainStep};
 use burn::{
     nn::{Linear, LinearConfig},
     prelude::*,
 };
-use hive_library::{Board, NNUE_BOARD};
+use hive_library::NNUE_BOARD;
 
 #[derive(Module, Debug)]
 pub struct Model<B: Backend> {
@@ -30,6 +31,9 @@ impl ModelConfig {
             features_layer: LinearConfig::new(NNUE_BOARD, self.hidden_size_1)
                 .with_bias(true)
                 .init(device),
+            // l1_layer: LinearConfig::new(self.hidden_size_1, self.hidden_size_2)
+            //     .with_bias(true)
+            //     .init(device),
             l1_layer: LinearConfig::new(self.hidden_size_1 * 2, self.hidden_size_2)
                 .with_bias(true)
                 .init(device),
@@ -50,22 +54,53 @@ impl<B: Backend> Model<B> {
         let w = self.features_layer.forward(white_features.float());
         let b = self.features_layer.forward(black_features.float());
         let wb_tensor = Tensor::cat(vec![w.clone(), b.clone()], 1);
-        let bw_tensor = Tensor::cat(vec![w.clone(), b.clone()], 1);
-        // TODO: Check that unsqueeze_dim and expand is correct
-        let mask = stm.clone().unsqueeze::<2>().expand(wb_tensor.shape());
+        let bw_tensor = Tensor::cat(vec![b.clone(), w.clone()], 1);
+        let mask = stm
+            .clone()
+            .unsqueeze::<2>()
+            .transpose()
+            .expand(wb_tensor.shape());
 
         let accumulator =
             wb_tensor.mask_fill(mask.clone().bool_not(), 0) + bw_tensor.mask_fill(mask, 0);
         let l1_x = accumulator.clamp(0.0, 1.0);
+        // let l1_x = w.clamp(0.0, 1.0);
+
         let l2_x = self.l1_layer.forward(l1_x).clamp(0.0, 1.0);
         self.l2_layer.forward(l2_x)
     }
 
     pub fn forward_step(&self, item: BoardBatch<B>) -> RegressionOutput<B> {
         let output = self.forward(item.white_features, item.black_features, item.stm);
-        // TODO: Check that unsqueeze_dim is correct
         let targets = item.targets.unsqueeze_dim(1);
-        let loss = MseLoss::new().forward(output.clone(), targets.clone(), Mean);
+        let scaling = 40;
+        // let offset = 20;
+        // let s = (targets.clone() - offset) / scaling;
+        // let sm = (-targets.clone() - offset) / scaling;
+        // let sf = 0.5 * (1.0 + sigmoid(s) - sigmoid(sm));
+        //
+        // let q = (output.clone() - offset) / scaling;
+        // let qm = (-output.clone() - offset) / scaling;
+        // let qf = 0.5 * (1.0 + sigmoid(q) - sigmoid(qm));
+
+        let l_targets = sigmoid(targets.clone() / scaling);
+
+        let l_output = sigmoid(output.clone() / scaling);
+        // let l_output = output.clone();
+        // let epsilons = 1e-12;
+        // let loss_cross: Tensor<B, 2> = (targets.clone() * (targets.clone() + epsilons).log()
+        //     + (1.0 - targets.clone()) * (1.0 + epsilons)
+        //     - targets.clone().log())
+        //     - (output.clone() * (output.clone() + epsilons).log()
+        //         + (1.0 - output.clone()) * (1.0 + epsilons)
+        //         - output.clone().log());
+        // let loss_cross: Tensor<B, 1> = loss_cross.mean_dim(1).squeeze_dim(1);
+        let loss = MseLoss::new().forward(l_output.clone(), l_targets.clone(), Mean);
+        // let loss = Tensor::abs(sf - qf)
+        //     .powf_scalar(2.5)
+        //     .mean_dim(1)
+        //     .squeeze_dim(1);
+
         RegressionOutput {
             loss,
             output,

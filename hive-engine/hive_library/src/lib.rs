@@ -24,6 +24,8 @@ mod hexset;
 pub use hexset::*;
 mod data_generation_mod;
 mod nnue_board;
+mod nnue_board_alt;
+
 pub use data_generation_mod::*;
 
 pub use nnue_board::*;

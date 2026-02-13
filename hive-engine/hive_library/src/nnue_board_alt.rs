@@ -13,12 +13,6 @@ pub struct NNUEBoard {
     board: [bool; NNUE_BOARD],
 }
 
-impl Default for NNUEBoard {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl NNUEBoard {
     pub fn new() -> Self {
         Self {

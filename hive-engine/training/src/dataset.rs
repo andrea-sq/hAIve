@@ -44,7 +44,7 @@ impl BoardDataset {
         Self::new("train")
     }
     pub fn validation() -> Result<Self, std::io::Error> {
-        Self::new("validation")
+        Self::new("valid")
     }
     pub fn test() -> Result<Self, std::io::Error> {
         Self::new("test")
