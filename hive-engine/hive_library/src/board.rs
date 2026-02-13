@@ -232,13 +232,8 @@ impl Board {
         self.nodes[hex] = Node::new_occupied(bug, color, bug_num, tile_height);
 
         //NNUE board snippet
-        for dir in EdgeDirection::ALL_DIRECTIONS.iter() {
-            let nb = self.neighbor(hex, *dir);
-            if self.occupied(nb) {
-                self.nnue_board
-                    .set_connection(self.nodes[hex], self.nodes[nb], *dir);
-            }
-        }
+        self.nnue_board
+            .set_position(self.nodes[hex], self.find_id(hex));
 
         let height = self.height(hex);
         if height > 1 {
@@ -276,13 +271,7 @@ impl Board {
         let prev = self.node(hex);
         let old_node = self.nodes[hex];
         //NNUE board snippet
-        for dir in EdgeDirection::ALL_DIRECTIONS.iter() {
-            let nb = self.neighbor(hex, *dir);
-            if self.occupied(nb) {
-                self.nnue_board
-                    .unset_connection(old_node, self.nodes[nb], *dir);
-            }
-        }
+        self.nnue_board.unset_position(old_node, self.find_id(hex));
         if height > 1 {
             self.nnue_board.set_height(old_node, 1);
         }

@@ -1,12 +1,14 @@
+use crate::board::GRID_SIZE;
 use crate::bug::Bug;
 use crate::{Color, Node};
-use hexx::EdgeDirection;
-pub const NNUE_BOARD: usize = 28 * 27 * 3 + 6 * 6;
-const EDGES_NNUE_BOARD: usize = 28 * 27 * 3;
-const HEIGHTS_NNUE_BOARD: usize = 6 * 6;
+use hexx::{EdgeDirection, Hex};
+use std::char::MAX;
 
-// TODO: Probably this is a bit larger than needed
-pub const MAX_ACTIVE_FEATURES: usize = 28 * 3 + 6;
+pub const MAX_ACTIVE_FEATURES: usize = 28 + 6;
+pub const MAX_BOARD_SIZE: usize = 3 * 14 + 3 * 14 * 14 + 1;
+const EDGES_NNUE_BOARD: usize = MAX_BOARD_SIZE * 28;
+const HEIGHTS_NNUE_BOARD: usize = 6 * 6;
+pub const NNUE_BOARD: usize = EDGES_NNUE_BOARD + HEIGHTS_NNUE_BOARD;
 
 #[derive(Debug, Clone)]
 pub struct NNUEBoard {
@@ -131,9 +133,12 @@ impl NNUEBoard {
         piece_num_a * 27 * 3 + piece_num_b * 3 + dir_num
     }
 
-    fn get_height_index(node: Node) -> usize {
-        let starting_index = 28 * 27 * 3;
+    fn get_position_index(mut node: Node, tile_id: usize) -> usize {
+        let mut piece_num = Self::get_piece_number(node);
+        piece_num * MAX_BOARD_SIZE + tile_id
+    }
 
+    fn get_height_index(node: Node) -> usize {
         let bug = node.get_bug().unwrap();
         let bug_num = node.get_bug_num();
         let color = node.get_color().unwrap();
@@ -149,7 +154,7 @@ impl NNUEBoard {
 
             _ => unreachable!(),
         };
-        6 * offest_index + starting_index
+        6 * offest_index + EDGES_NNUE_BOARD
     }
 
     pub fn set_height(&mut self, node: Node, height: usize) {
@@ -170,14 +175,29 @@ impl NNUEBoard {
         self.board[connection_index] = true;
     }
 
+    pub fn set_position(&mut self, node: Node, tile_id: usize) {
+        let position_index = Self::get_position_index(node, tile_id);
+        self.board[position_index] = true;
+    }
+
     pub fn unset_connection(&mut self, node_a: Node, node_b: Node, dir: EdgeDirection) {
         let connection_index = Self::get_connection_index(node_a, node_b, dir);
         self.board[connection_index] = false;
     }
 
+    pub fn unset_position(&mut self, node: Node, tile_id: usize) {
+        let position_index = Self::get_position_index(node, tile_id);
+        self.board[position_index] = false;
+    }
+
     pub fn get_connection(&mut self, node_a: Node, node_b: Node, dir: EdgeDirection) -> bool {
         let connection_index = Self::get_connection_index(node_a, node_b, dir);
         self.board[connection_index]
+    }
+
+    pub fn get_position(&mut self, node: Node, tile_id: usize) -> bool {
+        let position_index = Self::get_position_index(node, tile_id);
+        self.board[position_index]
     }
 
     pub fn get_height(&mut self, node: Node, height: usize) -> bool {
