@@ -5,7 +5,7 @@
 \usepackage{graphicx}
 \usepackage{geometry}
 \usepackage{csquotes}
-
+\usepackage{parskip}
 \usepackage{fancyhdr}
 \usepackage[hidelinks]{hyperref}
 \usepackage{booktabs}
@@ -55,6 +55,7 @@
 \date{\today}
 
 \nocite{*}
+
 
 \begin{document}
 
@@ -133,15 +134,12 @@
 		
 		
 		\subsection{Specifiche PEAS}
-		***Mzinga \cite{mzinga} software open-source per supportare la comunità di sviluppatori che realizza IA in grado di giocare ad Hive.
-		\\
-		***euristiche
 
 		\begin{itemize}
 			\item \textbf{Performance.} Le misure adottate per valutare le prestazioni sono il \textit{tempo} per generare una mossa e le \textit{percentuali di vittoria} contro una generatore di mosse randomiche e altri agenti noti.
 			\item \textbf{Environment.} L'ambiente in cui opera l'agente è costituito dall'insieme di tutte le possibili configurazioni che l'alveare può assumere.			
-			\item \textbf{Actuators.} L'agente agisce sull'ambiente mediante la successiva mossa scelta in base alle euristiche definite.
-			\item \textbf{Sensors.} L'agente percepisce l'ambiente mediante le informazioni associate alla specifica partita, quali: mosse possibili, stato di accerchiamento delle api regine, boh
+			\item \textbf{Actuators.} L'agente agisce sull'ambiente mediante la successiva mossa scelta.
+			\item \textbf{Sensors.} L'agente percepisce l'ambiente mediante la sequenza di mosse dell'avversario.
 		\end{itemize}
 
 			\subsubsection{Caratteristiche dell'ambiente}
@@ -172,7 +170,7 @@
 			
 			\item Se un giocatore non può muovere un suo pezzo in campo né aggiungerne di nuovi, passa il turno all'avversario: il gioco continua in questo modo finché il primo giocatore non è nuovamente in grado di fare la sua mossa.
 
-			\item \textit{One Hive Rule}: i pezzi in gioco devono essere costantemente connessi, non è mai possibile dividere l'alveare in due o più parti;\\
+			\item \textit{One Hive Rule}: i pezzi in gioco devono essere costantemente connessi, non è mai possibile dividere l'alveare in due o più parti.
 			\begin{center}
 			\includegraphics[width=0.5\linewidth]{onehive.pdf} 
 			\end{center}
@@ -186,28 +184,55 @@
 		\end{itemize}
 
 		\newpage
-		\subsection*{Rappresentazione dello stato di gioco}
+		\subsubsection{Rappresentazione dello stato di gioco}
 			Per modellare lo stato in cui si trova l'alveare sono state adottate due rappresentazioni distinte:
+			\begin{itemize}
+				\item Una mappa esagonale modulare di raggio 14 (e diametro 29) a cui abbiamo applicato le coordinate assiali per identificare univocamente la posizione di ogni esagono. 
+				La scelta del raggio corriponde al più piccolo numero che permette di posizionare tutti i 28 pezzi e mantenere l'illusione di una mappa infinita, in modo da minimizzare la quantità di spazio necessario a memorizzare ogni stato.
 
-			Nel caso dell'albero di ricerca Minimax, lo stato è raffigurato mediante una mappa esagonale modulare di raggio 14 (e diametro 29) che utilizza le coordinate assiali(geometriche?? idk) per identificare univocamente la posizione di ogni esagono. 
-			La scelta del raggio corriponde al più piccolo numero che permette di posizionare tutti i 28 pezzi lungo un unico asse senza che gli estremi dell'alveare risultino connessi, in modo da minimizzare la quantità di spazio necessario a memorizzare ogni stato.
+				\item Un vettore binario che rappresenta la presenza o l'assenza di possibili archi e l'altezza dei pezzi che sono in grado di salire sull'alveare. 
+			\end{itemize}
 
-			Nel caso NNUE, è stato utilizzato un vettore binario che rappresenti la lista dei possibili archi e l'altezza dei pezzi che sono in grado di salire sull'alveare. 			
+		\subsubsection{Contributi precedenti}
+			Il progetto Mzinga \cite{mzinga} è una collezione di software open-source per agevolare la comunità di sviluppatori e giocatori di Hive. 
+			
+			Offre tra le principali feature l'\textbf{Universal Hive Protocol} (UHP) che supporta l'interoperabilità tra software dedicati al gioco. Opera distinguendo tra due principali tipi di programmi: engines e viewers.
+			Un engine ha il compito di comprendere come funziona una partita di Hive.
+			Un viewer semplifica l'interazione dell'utente umano con l'engine.
 
-		%\subsection*{Formalizzazione del problema}
-		
-		%\begin{itemize}
-		%	\item \textbf{Stato iniziale.} Rappresentazione dell'alveare vuoto.
-		%	\item \textbf{Azioni.} Insieme di inserzioni e spostamenti validi che l'agente può eseguire con i pezzi a disposizione in un determinato istante.
-		%	\item \textbf{Modello di transizione.} huhhhhhhhhhhhhh Deterministico
-		%	\item \textbf{Test obiettivo/Test terminazione.} Una delle due api regine è completamente circondata./L'ape regina avversaria è completamente circondata.
-		%\end{itemize}
+			Abbiamo deciso di implementare \textbf{UHP} per semplificare l'interazione e il confronto tra il nostro agente e altri agenti pre-esistenti. Ulteriore beneficio di questa scelta è derivato dall'utilizzo del viewer di Mzinga, che ci ha fornito un'interfaccia di gioco ampiamente utilizzata dalla community.
 
+	\newpage
 	\section{Soluzioni proposte}
-		\subsection{Minimax}
-		\subsection{Reinforcement Learning}
 
-	\section{Conclusioni finali}
+	A partire dall'analisi effettuata, risulta naturale che si tratti di un problema di ricerca con avversario.\\
+	Per giungere ad una soluzione è necessario definire due componenti:
+	\begin{itemize}
+		\item \textbf{Algoritmo di esplorazione delle mosse.} Per ricercare la scelta più conveniente, non è sufficiente conoscere le mosse possibili in un dato istante, ma è necessario studiare le implicazioni di queste e quindi le possibili mosse $n$ turni nel futuro.
+		\item \textbf{Algoritmo di valutazione dello stato di gioco.} É impensabile esplorare completamente l'albero di gioco a causa dell'elevato \textit{fattore di ramificazione}, che ricordiamo essere pari a 60. Di conseguenza, è necessario poter usufruire di una nozione della bontà di un determinato stato di gioco.
+	\end{itemize} 
+
+	\subsection{Esplorazione mosse}
+	\subsubsection{Potatura alfa-beta}
+
+	\paragraph{Negamax}
+
+	\paragraph{Young Brothers Wait}
+
+	\paragraph{MTD(f)}
+
+	%\paragraph{Ottimizzazioni}
+
+	\subsubsection{Monte Carlo Tree Search}
+
+	\subsection{Valutazione stato di gioco}
+
+	\subsubsection{Funzioni euristiche}
+
+	\subsubsection{NNUE}
+
+	\section{Confronto tra le implementazioni}
+
 	
 	\newpage
 	\printbibliography
