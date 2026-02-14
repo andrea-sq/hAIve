@@ -163,7 +163,7 @@ impl NNUEBoard {
             return;
         }
         self.board[height_index + height - 2] = true;
-        self.board[height_black_index + height - 2] = true;
+        self.board_black[height_black_index + height - 2] = true;
     }
 
     // pub fn set_connection(&mut self, node_a: Node, node_b: Node, dir: EdgeDirection) {
