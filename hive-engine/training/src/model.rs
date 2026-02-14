@@ -1,6 +1,7 @@
 use crate::dataset::BoardBatch;
 use burn::nn::loss::MseLoss;
 use burn::nn::loss::Reduction::Mean;
+use burn::nn::{Dropout, DropoutConfig};
 use burn::tensor::activation::sigmoid;
 use burn::tensor::backend::AutodiffBackend;
 use burn::train::{InferenceStep, RegressionOutput, TrainOutput, TrainStep};
@@ -15,13 +16,19 @@ pub struct Model<B: Backend> {
     features_layer: Linear<B>,
     l1_layer: Linear<B>,
     l2_layer: Linear<B>,
+    dropout: Dropout,
 }
 
 #[derive(Config, Debug)]
 pub struct ModelConfig {
+    #[config(default = 512)]
     hidden_size_1: usize,
+    #[config(default = 32)]
     hidden_size_2: usize,
+    #[config(default = 1)]
     output_size: usize,
+    #[config(default = 0.2)]
+    dropout: f64,
 }
 
 impl ModelConfig {
@@ -40,6 +47,7 @@ impl ModelConfig {
             l2_layer: LinearConfig::new(self.hidden_size_2, self.output_size)
                 .with_bias(true)
                 .init(device),
+            dropout: DropoutConfig::new(self.dropout).init(),
         }
     }
 }
@@ -52,7 +60,9 @@ impl<B: Backend> Model<B> {
         stm: Tensor<B, 1, Bool>,
     ) -> Tensor<B, 2> {
         let w = self.features_layer.forward(white_features.float());
+
         let b = self.features_layer.forward(black_features.float());
+
         let wb_tensor = Tensor::cat(vec![w.clone(), b.clone()], 1);
         let bw_tensor = Tensor::cat(vec![b.clone(), w.clone()], 1);
         let mask = stm
@@ -63,11 +73,26 @@ impl<B: Backend> Model<B> {
 
         let accumulator =
             wb_tensor.mask_fill(mask.clone().bool_not(), 0) + bw_tensor.mask_fill(mask, 0);
-        let l1_x = accumulator.clamp(0.0, 1.0);
+        // let accumulator = wb_tensor;
+        // Clamp implementation
+        let l1_x = self.dropout.forward(accumulator).clamp(0.0, 1.0);
+        let l2_x = self
+            .dropout
+            .forward(self.l1_layer.forward(l1_x))
+            .clamp(0.0, 1.0);
+        self.l2_layer.forward(l2_x)
         // let l1_x = w.clamp(0.0, 1.0);
 
-        let l2_x = self.l1_layer.forward(l1_x).clamp(0.0, 1.0);
-        self.l2_layer.forward(l2_x)
+        // let l2_x = self
+        //     .dropout
+        //     .forward(self.l1_layer.forward(l1_x))
+        //     .clamp(0.0, 1.0);
+        // let l3_x = self
+        //     .dropout
+        //     .forward(self.l2_layer.forward(l2_x))
+        //     .clamp(0.0, 1.0);
+
+        // self.l3_layer.forward(l3_x)
     }
 
     pub fn forward_step(&self, item: BoardBatch<B>) -> RegressionOutput<B> {
@@ -103,8 +128,8 @@ impl<B: Backend> Model<B> {
 
         RegressionOutput {
             loss,
-            output,
-            targets,
+            output: l_output,
+            targets: l_targets,
         }
     }
 }

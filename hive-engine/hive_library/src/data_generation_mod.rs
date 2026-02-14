@@ -1,10 +1,7 @@
-use crate::nnue_board::MAX_ACTIVE_FEATURES;
 use crate::player::{Player, PlayerStrategy};
-use crate::uhp_client::UhpPlayer;
 use crate::{BasicEvaluator, Board, PlayerConfig, Rules};
-use csv::Writer;
 use minimax::{Evaluator, Game};
-use rand::{Rng, rng};
+use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::io;
 
@@ -60,7 +57,7 @@ pub fn generate_games<W: io::Write>(
         let mut black_features_indices_vec = b.nnue_board.get_black_feature_indices();
         let black_features_indices = black_features_indices_vec.try_into().unwrap();
 
-        let stm = p != 0;
+        let stm = p == 0;
         let score = basic_evaluator.evaluate(&b) as f64;
 
         let board_item = BoardItem {

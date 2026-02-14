@@ -5,19 +5,19 @@ mod training;
 
 // use crate::training::ExponentialLrSchedulerConfig;
 use crate::{model::ModelConfig, training::TrainingConfig};
-use burn::backend::{Autodiff, Wgpu};
+use burn::backend::{Autodiff, Cuda};
 use burn::optim::AdamConfig;
 
 fn main() {
-    type MyBackend = Wgpu<f32, i32>;
+    type MyBackend = Cuda<f32, i32>;
     type MyAutodiffBackend = Autodiff<MyBackend>;
 
-    let device = burn::backend::wgpu::WgpuDevice::default();
+    let device = burn::backend::cuda::CudaDevice::default();
     let artifact_dir = "./haive_training_results";
     training::train::<MyAutodiffBackend>(
         artifact_dir,
         TrainingConfig::new(
-            ModelConfig::new(256, 32, 1),
+            ModelConfig::new(),
             AdamConfig::new(),
             // ExponentialLrSchedulerConfig::new(),
         ),
