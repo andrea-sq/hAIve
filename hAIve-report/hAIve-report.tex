@@ -289,6 +289,26 @@ function MTDF(root, f, d) is
 
 	\subsubsection{Monte Carlo Tree Search}
 
+	MCTS è un algoritmo di \textbf{ricerca euristica} utilizzato per l'emulazione di processi decisionali, specialmente all'interno di software in grado di risolvere giochi da tavolo.
+	Nel 2016 è stata per la prima volta dimostrata l'efficacia di MCTS combinato con le reti neurali.
+
+	L'algoritmo è basato su esplorazioni randomiche dello spazio di ricerca, a partire dalle quali costruisce gradualmente un albero di gioco e migliora la propria accuratezza.
+
+	\paragraph{Le quattro fasi} \hfill
+
+	\begin{itemize}
+		\item \textbf{Selezione.} L'albero è esplorato dalla radice $R$ fino a raggiungere una foglia $L$, dove la radice è lo stato di gioco corrente e una foglia è qualsiasi nodo che ha figli non ancora esaminati.
+		\item \textbf{Espansione.} A meno che $L$ non termini il gioco in maniera decisiva, viene espanso un nodo figlio $C$.
+		\item \textbf{Simulazione.} Effettua una partita casuale a partire dal nodo $C$.
+		\item \textbf{Backpropagation.} Utilizza i risultati della partita per aggiornare le informazioni nei nodi sul percorso da $C$ a $R$.
+	\end{itemize}
+
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=0.8\linewidth]{mcts.pdf}
+		\caption{I 4 step della ricerca ad albero di Monte Carlo}
+	\end{figure}
+
 	\subsection{Valutazione stato di gioco}
 
 	\subsubsection{Funzioni euristiche}
