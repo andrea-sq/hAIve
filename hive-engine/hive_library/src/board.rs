@@ -2,8 +2,8 @@ use crate::bug::Bug;
 use crate::hexset::HexSet;
 use crate::nnue_board::NNUEBoard;
 use bitfield::bitfield;
-use hexx::storage::HexModMap;
-use hexx::{EdgeDirection, Hex, HexBounds};
+use hexx::storage::{HexModMap, HexStore};
+use hexx::{hex, EdgeDirection, Hex, HexBounds};
 use minimax::Winner;
 use std::cmp::{max, min};
 use std::collections::HashSet;
@@ -15,6 +15,9 @@ pub(crate) const GRID_RADIUS: usize = 14;
 pub(crate) const GRID_SIZE: usize = 631;
 
 static ZOBRIST_TABLE: OnceLock<[u64; GRID_SIZE * 2]> = OnceLock::new();
+
+static ID_TABLE: OnceLock<[[usize; 29]; 29]> = OnceLock::new();
+static OUT_OF_MAP_TABLE: OnceLock<[[Hex; 31]; 31]> = OnceLock::new();
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Color {
@@ -125,6 +128,9 @@ pub struct Board {
     zorbist_hash: u64,
     zorbist_history: Vec<u64>,
 
+    id_table: &'static [[usize; 29]; 29],
+    out_of_map_table: &'static [[Hex; 31]; 31],
+
     pub(super) turn_history: Vec<Turn>,
     pub(super) game_type_bits: u8,
 }
@@ -132,8 +138,8 @@ pub struct Board {
 impl Board {
     pub fn find_id(&self, hex: Hex) -> usize {
         //let new_hex = self.nodes.bounds().wrap(hex);
-
-        hex.to_hexmod_coordinates(self.nodes.bounds().radius) as usize
+        let new_hex = self.wrap(hex);
+        self.id_table[(new_hex.x + 14) as usize][(new_hex.y + 14) as usize]
     }
 
     pub fn adjacent_id(&self, hex: Hex) -> impl Iterator<Item = (Hex, u32)> {
@@ -142,13 +148,13 @@ impl Board {
             .map(move |dir| self.neighbor_id(hex, *dir))
     }
     pub fn neighbor_id(&self, hex: Hex, dir: EdgeDirection) -> (Hex, u32) {
-        let hex_bounds = self.nodes.bounds();
         let neighbor = hex.neighbor(dir);
-        let neighbor_id = neighbor.to_hexmod_coordinates(hex_bounds.radius);
-        (
-            Hex::from_hexmod_coordinates(neighbor_id, hex_bounds.radius),
-            neighbor_id,
-        )
+        let neighbor_id = self.find_id(neighbor) as u32;
+        (self.wrap(neighbor), neighbor_id)
+    }
+
+    pub fn wrap(&self, hex: Hex) -> Hex {
+        self.out_of_map_table[hex.x as usize + GRID_RADIUS + 1][hex.y as usize + GRID_RADIUS + 1]
     }
 
     pub fn adjacent(&self, hex: Hex) -> impl Iterator<Item = Hex> {
@@ -162,12 +168,8 @@ impl Board {
     }
 
     pub fn neighbor(&self, hex: Hex, dir: EdgeDirection) -> Hex {
-        let hex_bounds = self.nodes.bounds();
         let neighbor = hex.neighbor(dir);
-        Hex::from_hexmod_coordinates(
-            neighbor.to_hexmod_coordinates(hex_bounds.radius),
-            hex_bounds.radius,
-        )
+        self.wrap(neighbor)
     }
 
     pub fn to_move(&self) -> Color {
@@ -355,6 +357,37 @@ impl Board {
                 game_type_bits |= 1 << i;
             }
         }
+        let nodes = HexModMap::new(START_HEX, GRID_RADIUS as u32, |_| Node(0));
+
+        let id_table = ID_TABLE.get_or_init(|| {
+            let mut table = [[0; 29]; 29];
+
+            for (hex, _) in nodes.iter() {
+                let x = hex.x as usize + GRID_RADIUS;
+                let y = hex.y as usize + GRID_RADIUS;
+                table[x][y] = hex.to_hexmod_coordinates(GRID_RADIUS as u32) as usize;
+            }
+
+            table
+        });
+
+        let out_of_map_table = OUT_OF_MAP_TABLE.get_or_init(|| {
+            let mut table = [[Hex::ZERO; 31]; 31];
+            let hex_bounds = nodes.bounds();
+            let faux_nodes = HexModMap::new(START_HEX, GRID_RADIUS as u32 + 1, |_| Node(0));
+
+            for (hex, _) in faux_nodes.iter() {
+                let x = hex.x as usize + GRID_RADIUS + 1;
+                let y = hex.y as usize + GRID_RADIUS + 1;
+                if !hex_bounds.is_in_bounds(hex) {
+                    table[x][y] = hex_bounds.wrap(hex);
+                } else {
+                    table[x][y] = hex;
+                }
+            }
+
+            table
+        });
 
         let zorbist_table = ZOBRIST_TABLE.get_or_init(|| {
             let mut table = [0u64; GRID_SIZE * 2];
@@ -366,7 +399,7 @@ impl Board {
             table
         });
         Self {
-            nodes: HexModMap::new(START_HEX, GRID_RADIUS as u32, |_| Node(0)),
+            nodes,
             nnue_board: NNUEBoard::new(),
             underworld: [UnderNode::empty(); 8],
             underworld_size: 0,
@@ -378,6 +411,8 @@ impl Board {
             zorbist_hash: 0,
             zorbist_history: Vec::new(),
             turn_history: Vec::new(),
+            id_table,
+            out_of_map_table,
             game_type_bits,
         }
     }

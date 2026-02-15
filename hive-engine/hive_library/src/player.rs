@@ -382,7 +382,7 @@ impl PlayerConfig {
             ),
             PlayerStrategy::Mcts(opts) => {
                 let mut opts = opts.clone();
-                let num_threads = self.num_threads.unwrap_or(0);
+                let num_threads = self.num_threads.unwrap_or(1);
                 if num_threads > 0 {
                     opts = opts.with_num_threads(num_threads);
                 }
@@ -397,7 +397,7 @@ impl PlayerConfig {
             }
             PlayerStrategy::Iterative(parallel_opts) => {
                 let mut parallel_opts = *parallel_opts;
-                let num_threads = self.num_threads.unwrap_or(0);
+                let num_threads = self.num_threads.unwrap_or(1);
                 if num_threads > 0 {
                     parallel_opts = parallel_opts.with_num_threads(num_threads);
                 }
