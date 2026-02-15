@@ -16,8 +16,14 @@
 \usepackage{tabularx}
 \usepackage[all]{nowidow}
 \usepackage[backend=biber, sorting=none, style=numeric]{biblatex}
+\usepackage{tcolorbox}
 
 \addbibresource{refs.bib}
+\DeclareUnicodeCharacter{221E}{$\infty$}
+\DeclareUnicodeCharacter{03B1}{$\alpha$}
+\DeclareUnicodeCharacter{03B2}{$\beta$}
+\DeclareUnicodeCharacter{2212}{$-$}
+\DeclareUnicodeCharacter{2265}{$\geq$}
 
 % Configurazione margini
 \geometry{
@@ -217,7 +223,27 @@
 
 	La potatura alfa-beta è un algoritmo di ricerca che ha l'obiettivo di ridurre il numero di nodi esplorati dall'algoritmo minimax. Interrompe l'esplorazione di un nodo nel momento in cui determina che la mossa in oggetto sia sicuramente peggiore di almeno un'altra mossa precedentemente esplorata. Non è pertanto necessario continuare a esplorare tali mosse.
 
-	\paragraph{Negamax}
+	\paragraph{Negamax} \hfill 
+
+	La ricerca \textbf{negamax} è una variante dell'algoritmo minimax che sfrutta la proprietà di \textit{somma zero} di giochi come Hive. Semplifica l'implementazione dell'algoritmo minimax basandosi sulla seguente proprietà: $\min(a,b)=-\max(-b,-a)$. Ciò implica che il valore di una posizione del giocatore A è la negazione del valore del giocatore B, che permette di non dover dividere il processo di ricerca in due casi distinti. 
+
+	\begin{tcolorbox}[title=Algoritmo Negamax]
+	\begin{Verbatim}[tabsize=2]
+function negamax(node, depth, α, β, color) is
+	if depth = 0 or node is a terminal node then
+		return color × the heuristic value of node
+
+	childNodes := generateMoves(node)
+	childNodes := orderMoves(childNodes)
+	value := −∞
+	foreach child in childNodes do
+		value := max(value, −negamax(child, depth − 1, −β, −α, −color))
+		α := max(α, value)
+		if α ≥ β then
+			break (* cut-off *)
+	return value
+	\end{Verbatim}
+	\end{tcolorbox}
 
 	\paragraph{Young Brothers Wait}
 
