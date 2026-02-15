@@ -21,13 +21,13 @@ pub struct Model<B: Backend> {
 
 #[derive(Config, Debug)]
 pub struct ModelConfig {
-    #[config(default = 512)]
+    #[config(default = 2048)]
     hidden_size_1: usize,
-    #[config(default = 32)]
+    #[config(default = 2048)]
     hidden_size_2: usize,
     #[config(default = 1)]
     output_size: usize,
-    #[config(default = 0.2)]
+    #[config(default = 0.4)]
     dropout: f64,
 }
 

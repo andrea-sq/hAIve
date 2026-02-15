@@ -1,6 +1,7 @@
 use crate::board::Rules;
 use minimax::Game;
-use old_rand::prelude::*;
+use rand::prelude::*;
+use rand::rngs::SmallRng;
 
 pub struct BiasedRollouts {}
 
@@ -11,12 +12,12 @@ impl minimax::RolloutPolicy for BiasedRollouts {
         &self,
         board: &mut <Self::G as Game>::S,
         turns: &mut Vec<<Self::G as Game>::M>,
-        rng: &mut ThreadRng,
+        rng: &mut SmallRng,
     ) -> <Self::G as Game>::M {
         // TODO: Lazily generate moves
         Rules::generate_moves(board, turns);
         let n = turns.len();
-        turns.rotate_left(rng.gen_range(0..n));
+        turns.rotate_left(rng.random_range(0..n));
         for &turn in turns.iter() {
             board.apply(turn);
             if Rules::get_winner(board) == Some(minimax::Winner::PlayerJustMoved) {

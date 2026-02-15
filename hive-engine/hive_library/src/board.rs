@@ -131,19 +131,43 @@ pub struct Board {
 
 impl Board {
     pub fn find_id(&self, hex: Hex) -> usize {
-        let new_hex = self.nodes.bounds().wrap(hex);
-        new_hex.to_hexmod_coordinates(self.nodes.bounds().radius) as usize
+        //let new_hex = self.nodes.bounds().wrap(hex);
+
+        hex.to_hexmod_coordinates(self.nodes.bounds().radius) as usize
     }
 
-    pub fn adjacent(&self, hex: Hex) -> [Hex; 6] {
-        let hex_bounds = self.nodes.bounds();
-        let mut res = hex.all_neighbors();
-        res.iter_mut().for_each(|h| *h = hex_bounds.wrap(*h));
-        res
+    pub fn adjacent_id(&self, hex: Hex) -> impl Iterator<Item = (Hex, u32)> {
+        EdgeDirection::ALL_DIRECTIONS
+            .iter()
+            .map(move |dir| self.neighbor_id(hex, *dir))
     }
+    pub fn neighbor_id(&self, hex: Hex, dir: EdgeDirection) -> (Hex, u32) {
+        let hex_bounds = self.nodes.bounds();
+        let neighbor = hex.neighbor(dir);
+        let neighbor_id = neighbor.to_hexmod_coordinates(hex_bounds.radius);
+        (
+            Hex::from_hexmod_coordinates(neighbor_id, hex_bounds.radius),
+            neighbor_id,
+        )
+    }
+
+    pub fn adjacent(&self, hex: Hex) -> impl Iterator<Item = Hex> {
+        // let hex_bounds = self.nodes.bounds();
+        // let mut res = hex.all_neighbors();
+        EdgeDirection::ALL_DIRECTIONS
+            .iter()
+            .map(move |dir| self.neighbor(hex, *dir))
+        // res.iter_mut().for_each(|h| *h = hex_bounds.wrap(*h));
+        // res
+    }
+
     pub fn neighbor(&self, hex: Hex, dir: EdgeDirection) -> Hex {
         let hex_bounds = self.nodes.bounds();
-        hex_bounds.wrap(hex.neighbor(dir))
+        let neighbor = hex.neighbor(dir);
+        Hex::from_hexmod_coordinates(
+            neighbor.to_hexmod_coordinates(hex_bounds.radius),
+            hex_bounds.radius,
+        )
     }
 
     pub fn to_move(&self) -> Color {
@@ -155,17 +179,13 @@ impl Board {
     }
 
     fn zorbist(&self, hex: Hex, bug: Bug, color: Color, height: u8) -> u64 {
-        let id_hex = self
-            .nodes
-            .bounds()
-            .wrap(hex)
-            .to_hexmod_coordinates(self.nodes.bounds().radius) as usize;
+        let id_hex = hex.to_hexmod_coordinates(self.nodes.bounds().radius) as usize;
         let hash = self.zorbist_table[(id_hex << 1) | color as usize];
         hash.rotate_left(((height as u32) << 3) | bug as u32)
     }
 
     pub(crate) fn node(&self, hex: Hex) -> Node {
-        self.nodes[self.nodes.bounds().wrap(hex)]
+        self.nodes[hex]
     }
 
     pub fn get_underworld(&self) -> &[UnderNode] {
@@ -322,8 +342,7 @@ impl Board {
         for (i, entry) in out.iter_mut().enumerate() {
             *entry = self
                 .adjacent(self.queens[i])
-                .iter()
-                .filter(|adj| self.occupied(**adj))
+                .filter(|adj| self.occupied(*adj))
                 .count();
         }
         out
@@ -474,41 +493,35 @@ impl Board {
         };
 
         fn dfs(state: &mut State, hex: Hex, parent: Hex) {
-            state.visited.insert(state.board.find_id(hex));
-            let id_hex = hex
-                .const_sub(state.board.nodes.bounds().center)
-                .to_hexmod_coordinates(state.board.nodes.bounds().radius)
-                as usize;
+            let id_hex = state.board.find_id(hex);
+            state.visited.insert(id_hex);
             state.num[id_hex] = state.visit_num;
             state.low[id_hex] = state.visit_num;
             state.visit_num += 1;
 
             let root = hex == parent;
             let mut children = 0;
-            for adj in state.board.adjacent(hex) {
-                let id_adj = adj
-                    .const_sub(state.board.nodes.bounds().center)
-                    .to_hexmod_coordinates(state.board.nodes.bounds().radius)
-                    as usize;
+            for (adj, id_adj) in state.board.adjacent_id(hex) {
+                let id_adj = id_adj as usize;
                 if !state.board.occupied(adj) {
                     continue;
                 }
                 if adj == parent {
                     continue;
                 }
-                if state.visited.contains(state.board.find_id(adj)) {
+                if state.visited.contains(id_adj) {
                     state.low[id_hex] = min(state.low[id_hex], state.num[id_adj]);
                 } else {
                     dfs(state, adj, hex);
                     state.low[id_hex] = min(state.low[id_hex], state.low[id_adj]);
                     if state.low[id_adj] >= state.num[id_hex] && !root {
-                        state.immovable.insert(state.board.find_id(hex));
+                        state.immovable.insert(id_hex);
                     }
                     children += 1;
                 }
             }
             if root && children > 1 {
-                state.immovable.insert(state.board.find_id(hex));
+                state.immovable.insert(id_hex);
             }
         }
         let start = self.queens[0];
@@ -522,7 +535,9 @@ impl Board {
         origin: Hex,
         hex: Hex,
     ) -> impl Iterator<Item = Hex> + 'a {
-        *neighbors = self.adjacent(hex);
+        self.adjacent(hex)
+            .enumerate()
+            .for_each(|(i, hex)| neighbors[i] = hex);
         let mut occupied = 0;
         for neighbor in neighbors.iter().rev() {
             occupied <<= 1;
@@ -553,7 +568,15 @@ impl Board {
             self_height -= 1;
         }
         let mut heights = [0; 6];
-        let neighbors = self.adjacent(hex);
+        let mut neighbors = [Hex::ZERO; 6];
+        self.adjacent(hex)
+            .enumerate()
+            .for_each(|(i, hex)| neighbors[i] = hex);
+        // let neighbors = *self
+        //     .adjacent(hex)
+        //     .collect::<Vec<_>>()
+        //     .as_array::<6>()
+        //     .unwrap();
         for i in 0..6 {
             heights[i] = self.height(neighbors[i]);
         }
@@ -786,7 +809,7 @@ impl Board {
             if node.get_bug().unwrap() == Bug::Pillbug
                 || (node.get_bug().unwrap() == Bug::Mosquito
                     && !node.is_stacked()
-                    && self.adjacent(hex).iter().any(|&adj| {
+                    && self.adjacent(hex).any(|adj| {
                         let n = self.node(adj);
                         n.occupied() && n.get_bug().unwrap() == Bug::Pillbug
                     }))
@@ -871,7 +894,7 @@ impl minimax::Game for Rules {
                     if board.turn_num == 0 {
                         turns.push(Turn::Place(START_HEX, *bug));
                     } else {
-                        for &hex in board.adjacent(START_HEX).iter() {
+                        for hex in board.adjacent(START_HEX) {
                             turns.push(Turn::Place(hex, *bug));
                         }
                     }

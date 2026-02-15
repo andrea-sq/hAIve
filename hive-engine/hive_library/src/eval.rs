@@ -69,8 +69,7 @@ fn count_liberties(board: &Board, origin: Hex, hex: Hex) -> Evaluation {
 fn placeable(board: &Board, hex: Hex, color: Color) -> bool {
     !board
         .adjacent(hex)
-        .iter()
-        .any(|&adj| board.occupied(adj) && board.node(adj).get_color().unwrap() != color)
+        .any(|adj| board.occupied(adj) && board.node(adj).get_color().unwrap() != color)
 }
 
 #[test]
@@ -122,12 +121,15 @@ impl Evaluator for BasicEvaluator {
 
         let remaining = board.get_remaining();
         let opp_remaining = board.get_opponent_remaining();
-        for bug in Bug::iter_all() {
-            score += (remaining[bug as usize] as Evaluation
-                - opp_remaining[bug as usize] as Evaluation)
-                * self.unplayed_bug_factor
-                * self.value(bug);
-        }
+
+        score += Bug::iter_all()
+            .map(|bug| {
+                (remaining[bug as usize] - opp_remaining[bug as usize]) as Evaluation
+                    * self.value(bug)
+            })
+            .sum::<Evaluation>()
+            * self.unplayed_bug_factor;
+
         for &hex in board.occupied_hexes[0]
             .iter()
             .chain(board.occupied_hexes[1].iter())
@@ -143,11 +145,15 @@ impl Evaluator for BasicEvaluator {
                 if node.is_stacked() {
                     bug_score = self.value(Bug::Beetle);
                 } else {
-                    for adj in board.adjacent(hex) {
-                        if board.occupied(adj) {
-                            let bug = board.node(adj).get_bug().unwrap();
-                            if bug != Bug::Queen {
-                                bug_score = self.value(bug);
+                    let mut adjacent_number = 0;
+                    board
+                        .adjacent(hex)
+                        .filter(|&adj| board.occupied(adj))
+                        .map(|adj| board.node(adj).get_bug().unwrap())
+                        .for_each(|bug| {
+                            if bug == Bug::Queen || bug == Bug::Mosquito {
+                                adjacent_number += 1;
+                                bug_score = bug_score.max(self.value(bug));
                             }
                             if bug == Bug::Pillbug {
                                 pillbug_powers = true;
@@ -155,8 +161,8 @@ impl Evaluator for BasicEvaluator {
                             if !bug.crawler() {
                                 crawler = false;
                             }
-                        }
-                    }
+                        });
+                    bug_score += adjacent_number as Evaluation;
                 }
             }
 
@@ -174,7 +180,7 @@ impl Evaluator for BasicEvaluator {
             let friendly_queen = board.queens[node.get_color().unwrap() as usize];
 
             // TODO: Transpose this out of the loop
-            if board.adjacent(friendly_queen).contains(&hex) {
+            if board.adjacent(friendly_queen).any(|adj| adj == hex) {
                 if immovable.contains(board.find_id(hex)) && !node.is_stacked() {
                     queen_score[node.get_color().unwrap() as usize] -= self.queen_liberty_factor;
                 } else {
@@ -201,14 +207,13 @@ impl Evaluator for BasicEvaluator {
             }
             let enemy_queen = board.queens[node.get_color().unwrap().other() as usize];
 
-            if board.adjacent(enemy_queen).contains(&hex) {
+            if board.adjacent(enemy_queen).any(|adj| adj == hex) {
                 bug_score = 0;
                 queen_score[node.get_color().unwrap().other() as usize] -=
                     self.queen_liberty_factor * 12 / 10;
                 if pillbug_powers {
                     let best_unescape = board
                         .adjacent(hex)
-                        .into_iter()
                         .map(|lib| {
                             if board.occupied(lib) {
                                 6
@@ -247,8 +252,7 @@ impl Evaluator for BasicEvaluator {
                 && board.remaining[color as usize][Bug::Pillbug as usize] > 0
                 && board
                     .adjacent(board.queens[color as usize])
-                    .iter()
-                    .any(|&lib| placeable(board, lib, color))
+                    .any(|lib| placeable(board, lib, color))
             {
                 pillbug_defense[color as usize] = true;
             }
@@ -275,7 +279,7 @@ impl Evaluator for BasicEvaluator {
         if let Turn::Place(hex, _) = my_last_move
             && !board
                 .adjacent(board.queens[board.to_move().other() as usize])
-                .contains(&hex)
+                .any(|adj| adj == hex)
         {
             board.generate_movements(moves);
             moves.retain(|m| {
@@ -290,7 +294,7 @@ impl Evaluator for BasicEvaluator {
         if let Turn::Place(hex, _) = enemy_last_move
             && !board
                 .adjacent(board.queens[board.to_move() as usize])
-                .contains(&hex)
+                .any(|adj| adj == hex)
         {
             board.generate_movements(moves);
         }
