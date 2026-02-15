@@ -312,6 +312,29 @@ function MTDF(root, f, d) is
 	\subsection{Valutazione stato di gioco}
 
 	\subsubsection{Funzioni euristiche}
+	
+	L'obiettivo è la definizione di una funzione che restituisca una valutazione della bontà (di qui in avanti \textit{score}) del corrente stato dell'alveare. Abbiamo deciso di implementarla mediante la composizione dei seguenti fattori:
+	\begin{itemize}
+		\item \textbf{Valore dei pezzi.} A ogni pezzo è assegnato un valore.
+		\begin{itemize}
+			\item \textbf{Ape Regina}: 12
+			\item \textbf{Zanzara}: 8
+			\item \textbf{Formica}: 7
+			\item \textbf{Scarabeo}: 6
+			\item \textbf{Coccinella}: 6
+			\item \textbf{Onisco}: 5
+			\item \textbf{Cavalletta}: 3
+			\item \textbf{Ragno}: 2
+		\end{itemize}
+		\item \textbf{Pezzi non in gioco.} Per ogni diversa creatura viene calcolata la differenza tra i pezzi non in gioco propri e dell'avversario. Questa viene poi moltiplicata per il valore della creatura e il fattore di pezzo non giocato. Viene premiato l'avere meno pezzi in gioco rispetto all'avversario.
+		\item \textbf{Pezzi mobili in gioco.} Lo score viene calcolato moltiplicando il valore dei pezzi per il fattore di mobilità delle creature. Inoltre, il valore dei pezzi disposti sopra l'alveare è doppio.
+		\item \textbf{Libertà dell'Ape Regina.} Per ogni pezzo adiacente alla propria Ape Regina viene rimosso dallo score il fattore di libertà e, in maniera inversa, per ogni pezzo adiacente all'Ape Regina nemica il fattore viene sommato allo score.
+		\item \textbf{Versatilità della Zanzara.} Quando è in gioco, il valore della Zanzara corrisponde alla somma tra il numero di pezzi adiacenti ad essa e il valore massimo tra le creature adiacenti, fatta eccezione per le Api Regina e l'altra Zanzara.
+		\item \textbf{Onisco's Law.} Se il proprio Onisco è in grado di spostare la propria Ape Regina in una posizone tale che vi siano più di due spazi liberi adiacenti ad essa, allo score viene sommato il fattore di difesa della Regina.
+		In modo inverso, se l'Onisco avversario è in grado di effettuare la stessa mossa con l'Ape Regina avversaria, il fattore è sottratto allo score.
+		Inoltre, se è possibile piazzare un Onisco vicino all'Ape Regina viene sommato (o, nel caso inverso, sottratto) metà del fattore di difesa allo score.
+
+	\end{itemize}
 
 	\subsubsection{NNUE}
 
