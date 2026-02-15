@@ -25,6 +25,8 @@
 \DeclareUnicodeCharacter{03B2}{$\beta$}
 \DeclareUnicodeCharacter{2212}{$-$}
 \DeclareUnicodeCharacter{2265}{$\geq$}
+\DeclareUnicodeCharacter{018E}{\reflectbox{E}}
+\DeclareUnicodeCharacter{0418}{\reflectbox{N}}
 
 % Configurazione margini
 \geometry{
@@ -340,6 +342,43 @@ function MTDF(root, f, d) is
 	\newpage
 	
 	\subsubsection{NNUE}
+
+	NNUE, spesso rappresentata come ƎUИИ, è l'acronimo di \textbf{Efficiently Updatable Neural Networks}.
+
+	Viene utilizzata in giochi strategici virtuali, come \textit{shogi} o \textit{scacchi}, come funzione di valutazione basata su rete neurale i cui input sono array di valori booleani che identificano una specifica combinazione (pezzo, cella). Fa affidamento sulla limitatezza della variazione di stato ad ogni mossa, tipico di questa categoria di giochi.
+
+	La rete è stata inventata da Yu Nasu ed introdotta all'interno di shogi online nel 2018. Nell'agosto 2020 fu per la prima volta utilizzata all'interno di un software di scacchi, Stockfish 12, risultando in un incremento importante della forza di gioco dell'engine.
+
+	Le NNUE sono progettate affinchè possano essere eseguite efficientemente su CPU, utilizzando tecniche di computazione incrementale e sfruttando l'architettura SIMD. Questo va in contrapposizione ai motori scacchistici basati su reti neurali profonde, come \textit{Leela Chess Zero}, che necessitano di una GPU per inferire.
+
+	\begin{figure}[h]
+	\begin{center}
+	\includegraphics[width=0.3\linewidth]{nue.jpg} 
+	\end{center}
+	\caption{L'acronimo è un gioco di parole che fa riferimento alla figura mitologica giapponese \textit{Nue}}
+	\end{figure}
+
+	\paragraph{Architettura} \hfill
+
+	Nella sua forma più semplice, una rete NNUE è composta da tre livelli: 
+	\begin{itemize}
+		\item \textbf{Input layer.} La dimensione nella nostra rappresentazione di Hive è pari a $17704$ neuroni. 
+		Questo numero corrisponde alla somma dei prodotti tra numero di celle presenti nella mappa esagonale $*$ numero totale di pezzi e tra le sei altezze al di sopra dell'alveare $*$ i sei diversi pezzi in grado di salire sull'alveare.
+		\item \textbf{Hidden layer.} Generalmente la dimensione di questo strato è arbitraria. Nonostante ciò è usuale utilizzare potenze di due, particolarmente nel range $[256, 1024]$.
+		\item \textbf{Output layer.} Questo livello corrisponde alla predizione del modello ed è perciò costituito da un solo neurone.
+	\end{itemize}
+	
+	\newpage
+	\paragraph{Perspective} \hfill
+
+	La maggior parte delle architetture NNUE gestisce separatamente le prospettive degli avversari mediante due accumulatori distinti.
+	Entrambe le prospettive usano pesi e bias di input identici. Durante il processo di inferenza, i due accumulatori sono concatenati e ordinati in modo alternato in base al turno di gioco. Il vettore risultante, di dimensione doppia rispetto ai singoli accumulatori, è il "vero" \textit{hidden layer} ed è ciò che viene inoltrato all'\textit{output layer}.
+
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=0.9\linewidth]{nnue.png}
+		\caption{Esempio di architettura NNUE per il gioco degli scacchi}
+	\end{figure}
 
 	\section{Confronto tra le implementazioni}
 
