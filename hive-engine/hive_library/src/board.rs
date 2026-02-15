@@ -1,4 +1,5 @@
 use crate::bug::Bug;
+use crate::hex_grid::HexGrid;
 use crate::hexset::HexSet;
 use crate::nnue_board::NNUEBoard;
 use bitfield::bitfield;
@@ -17,6 +18,7 @@ pub(crate) const GRID_SIZE: usize = 631;
 static ZOBRIST_TABLE: OnceLock<[u64; GRID_SIZE * 2]> = OnceLock::new();
 
 static ID_TABLE: OnceLock<[[usize; 29]; 29]> = OnceLock::new();
+static HEX_TABLE: OnceLock<[Hex; GRID_SIZE]> = OnceLock::new();
 static OUT_OF_MAP_TABLE: OnceLock<[[Hex; 31]; 31]> = OnceLock::new();
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -115,7 +117,7 @@ impl UnderNode {
 
 #[derive(Clone, Debug)]
 pub struct Board {
-    pub(crate) nodes: HexModMap<Node>,
+    pub(crate) nodes: HexGrid,
     pub(crate) nnue_board: NNUEBoard,
     underworld: [UnderNode; 8],
     underworld_size: usize,
@@ -181,7 +183,7 @@ impl Board {
     }
 
     fn zorbist(&self, hex: Hex, bug: Bug, color: Color, height: u8) -> u64 {
-        let id_hex = hex.to_hexmod_coordinates(self.nodes.bounds().radius) as usize;
+        let id_hex = self.find_id(hex);
         let hash = self.zorbist_table[(id_hex << 1) | color as usize];
         hash.rotate_left(((height as u32) << 3) | bug as u32)
     }
@@ -371,6 +373,18 @@ impl Board {
             table
         });
 
+        let hex_table = HEX_TABLE.get_or_init(|| {
+            let mut table = [Hex::ZERO; GRID_SIZE];
+
+            for (hex, _) in nodes.iter() {
+                let x = hex.x as usize + GRID_RADIUS;
+                let y = hex.y as usize + GRID_RADIUS;
+                table[hex.to_hexmod_coordinates(GRID_RADIUS as u32) as usize] = hex;
+            }
+
+            table
+        });
+
         let out_of_map_table = OUT_OF_MAP_TABLE.get_or_init(|| {
             let mut table = [[Hex::ZERO; 31]; 31];
             let hex_bounds = nodes.bounds();
@@ -399,7 +413,7 @@ impl Board {
             table
         });
         Self {
-            nodes,
+            nodes: HexGrid::new(id_table, out_of_map_table, hex_table),
             nnue_board: NNUEBoard::new(),
             underworld: [UnderNode::empty(); 8],
             underworld_size: 0,
@@ -668,16 +682,16 @@ impl Board {
         let mut buf1 = [Hex::ZERO; 6];
         let mut buf2 = [Hex::ZERO; 6];
         let mut buf3 = [Hex::ZERO; 6];
-        let mut visited = HashSet::new();
-        visited.insert(orig);
+        let mut visited = HexSet::new();
+        visited.insert(self.find_id(orig));
 
         for s1 in self.slideable_adjacent(&mut buf1, orig, orig) {
             for s2 in self.slideable_adjacent(&mut buf2, orig, s1) {
                 if s2 != orig {
                     for s3 in self.slideable_adjacent(&mut buf3, orig, s2) {
-                        if s3 != s1 && !visited.contains(&s3) {
+                        if s3 != s1 && !visited.contains(self.find_id(s3)) {
                             turns.push(Turn::Move(orig, s3));
-                            visited.insert(s3);
+                            visited.insert(self.find_id(s3));
                         }
                     }
                 }
@@ -686,7 +700,7 @@ impl Board {
     }
 
     fn generate_walk_all(&self, orig: Hex, turns: &mut Vec<Turn>) {
-        let mut visited = HashSet::new();
+        let mut visited = HexSet::new();
         let mut queue = [Hex::ZERO; 16];
         queue[0] = orig;
         let mut qsize = 1;
@@ -694,15 +708,15 @@ impl Board {
         while qsize > 0 {
             qsize -= 1;
             let node = queue[qsize];
-            if visited.contains(&node) {
+            if visited.contains(self.find_id(node)) {
                 continue;
             }
-            visited.insert(node);
+            visited.insert(self.find_id(node));
             if node != orig {
                 turns.push(Turn::Move(orig, node));
             }
             for adj in self.slideable_adjacent(&mut buf, orig, node) {
-                if !visited.contains(&adj) {
+                if !visited.contains(self.find_id(adj)) {
                     queue[qsize] = adj;
                     qsize += 1;
                 }
@@ -713,16 +727,16 @@ impl Board {
         let mut buf1 = [Hex::ZERO; 6];
         let mut buf2 = [Hex::ZERO; 6];
         let mut buf3 = [Hex::ZERO; 6];
-        let mut step2 = HashSet::new();
-        let mut step3 = HashSet::new();
+        let mut step2 = HexSet::new();
+        let mut step3 = HexSet::new();
         for s1 in self.slideable_adjacent_beetle(&mut buf1, hex, hex) {
             if self.occupied(s1) {
                 for s2 in self.slideable_adjacent_beetle(&mut buf2, hex, s1) {
-                    if self.occupied(s2) && !step2.contains(&s2) {
-                        step2.insert(s2);
+                    if self.occupied(s2) && !step2.contains(self.find_id(s2)) {
+                        step2.insert(self.find_id(s2));
                         for s3 in self.slideable_adjacent_beetle(&mut buf3, hex, s2) {
-                            if !self.occupied(s3) && !step3.contains(&s3) {
-                                step3.insert(s3);
+                            if !self.occupied(s3) && !step3.contains(self.find_id(s3)) {
+                                step3.insert(self.find_id(s3));
                                 turns.push(Turn::Move(hex, s3));
                             }
                         }
@@ -806,13 +820,13 @@ impl Board {
         }
 
         // Remove duplicates.
-        let mut dests = HashSet::new();
+        let mut dests = HexSet::new();
         while i < turns.len() {
             if let Turn::Move(_, dest) = turns[i] {
-                if dests.contains(&dest) {
+                if dests.contains(self.find_id(dest)) {
                     turns.swap_remove(i);
                 } else {
-                    dests.insert(dest);
+                    dests.insert(self.find_id(dest));
                     i += 1;
                 }
             }

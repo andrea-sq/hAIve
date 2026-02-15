@@ -23,6 +23,7 @@ pub use uhp_client::*;
 mod hexset;
 pub use hexset::*;
 mod data_generation_mod;
+mod hex_grid;
 mod nnue_board;
 mod nnue_board_alt;
 
