@@ -151,7 +151,7 @@ impl Evaluator for BasicEvaluator {
                         .filter(|&adj| board.occupied(adj))
                         .map(|adj| board.node(adj).get_bug().unwrap())
                         .for_each(|bug| {
-                            if bug == Bug::Queen || bug == Bug::Mosquito {
+                            if bug != Bug::Queen && bug != Bug::Mosquito {
                                 adjacent_number += 1;
                                 bug_score = bug_score.max(self.value(bug));
                             }
@@ -190,7 +190,6 @@ impl Evaluator for BasicEvaluator {
                 if pillbug_powers && board.node(friendly_queen).get_tile_height() == 1 {
                     let best_escape = board
                         .adjacent(hex)
-                        .into_iter()
                         .map(|lib| {
                             if board.occupied(lib) {
                                 0
