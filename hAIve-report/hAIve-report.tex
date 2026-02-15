@@ -245,8 +245,6 @@ function negamax(node, depth, α, β, color) is
 	\end{Verbatim}
 	\end{tcolorbox}
 
-	\paragraph{Young Brothers Wait}
-
 	\newpage
 	\paragraph{Concetto Young Brothers Wait} \hfill
 
@@ -258,8 +256,34 @@ function negamax(node, depth, α, β, color) is
 	\includegraphics[width=1\linewidth]{ybwc.png}
 	\caption{\small{Slide estratta dalla lezione di M. Frigo "The Cilk system for multi-threading programming"}}
 	\end{figure}
+
+	\paragraph{MTD(f)} \hfill
+
+	MTD(f) è un algoritmo di ricerca alfa-beta con finestra nulla e con tabella di trasposizione per memorizzare i risulati intermedi, creato da Aske Plaat.
+	Il nome è un'abbreviazone di MTD$(n,f)$ ovvero \textbf{Memory-enhanced Test Driver} con nodo $n$ e valore $f$.
 	
-	\paragraph{MTD(f)}
+	L'efficacia di questo paradigma dipende da una buona stima iniziale del valore finale minimax. In media, migliore è questa supposizone più efficiente sarà l'algoritmo, poiché dovrà svolgere meno passi prima di convergere al valore corretto. Se la stima corrisponde al valore minimax, eseguirà solo due passi: il primo necessario ad individuare il limite superiore del valore $x$ e il secondo per individuare il limite inferiore dello stesso valore.
+
+	All'interno del nostro motore di gioco viene utilizzato come stima il precedente valore di valutazione della board della precedente mossa, ad eccezione della prima mossa in cui la stima viene inizializzata a 0.
+
+	\begin{tcolorbox}[title=Algoritmo MTD(f)]
+	\begin{Verbatim}[tabsize=2]
+function MTDF(root, f, d) is
+	g := f
+	upperBound := +∞
+	lowerBound := −∞
+
+	while lowerBound < upperBound do
+		β := max(g, lowerBound + 1)
+		g := AlphaBetaWithMemory(root, β − 1, β, d)
+		if g < β then
+			upperBound := g 
+		else
+			lowerBound := g
+
+	return g
+	\end{Verbatim}
+	\end{tcolorbox}
 
 	%\paragraph{Ottimizzazioni}
 
