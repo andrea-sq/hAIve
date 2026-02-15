@@ -247,6 +247,18 @@ function negamax(node, depth, α, β, color) is
 
 	\paragraph{Young Brothers Wait}
 
+	\newpage
+	\paragraph{Concetto Young Brothers Wait} \hfill
+
+	Il \textbf{concetto Young Brothers Wait} (YBWC) è un elemento fondamentale per la ricerca alfa-beta parallela, coniato da Rainer Feldmann et al. nel 1986 \cite{feldmann}.
+
+	I fratelli sono nodi che condividono lo stesso nodo padre. Il fratello maggiore, ovvero il primo rispetto ad una determinata funzione d'ordine, è esplorato per primo. I fratelli minori, prima di poter essere esplorati in parallelo, devono attendere che il fratello maggiore ceda il controllo a seguito di un taglio beta nella speranza che riduca i limiti dell'intervallo $[\alpha,\ \beta]$.
+
+	\begin{figure}[h]
+	\includegraphics[width=1\linewidth]{ybwc.png}
+	\caption{\small{Slide estratta dalla lezione di M. Frigo "The Cilk system for multi-threading programming"}}
+	\end{figure}
+	
 	\paragraph{MTD(f)}
 
 	%\paragraph{Ottimizzazioni}
