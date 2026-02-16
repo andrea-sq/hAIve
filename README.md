@@ -6,7 +6,7 @@
 Lo scopo del progetto consiste nella realizzazione di un **modello di intelligenza artificiale** in grado di sfidare un altro agente intelligente -*artificiale o umano*- nel gioco di [Hive](https://en.wikipedia.org/wiki/Hive_(game))
 
 ## Organizzazione della repository
-In questa repository GitHub è possibile trovare due root directory: `haive-engine` e `haive-report`. 
+In questa repository GitHub è possibile trovare due root directory: `hive-engine` e `haive-report`. 
 In `haive-engine` si trova il codice sorgente del proggetto, scritto totalmente in Rust ed una piccola parte in Python per automatizzare alcuni processi, ecco i moduli:
 
 - `battler`: Modulo che permette di far sfidare il modello (haive) contro un altro modello arbitrario che implementa un server UHP.
