@@ -6,7 +6,7 @@ use std::ops::IndexMut;
 #[derive(Clone, Debug)]
 pub struct HexGrid {
     id_table: &'static [[usize; 29]; 29],
-    hex_table: &'static [Hex; GRID_SIZE],
+    pub hex_table: &'static [Hex; GRID_SIZE],
     out_of_map_table: &'static [[Hex; 31]; 31],
     grid: [Node; GRID_SIZE],
 }

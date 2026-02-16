@@ -143,11 +143,21 @@ impl Board {
         let new_hex = self.wrap(hex);
         self.id_table[(new_hex.x + 14) as usize][(new_hex.y + 14) as usize]
     }
+    pub fn adjacent_id_u16(&self, hex: Hex) -> impl Iterator<Item = (Hex, u16)> {
+        EdgeDirection::ALL_DIRECTIONS
+            .iter()
+            .map(move |dir| self.neighbor_idu16(hex, *dir))
+    }
 
     pub fn adjacent_id(&self, hex: Hex) -> impl Iterator<Item = (Hex, u32)> {
         EdgeDirection::ALL_DIRECTIONS
             .iter()
             .map(move |dir| self.neighbor_id(hex, *dir))
+    }
+    pub fn neighbor_idu16(&self, hex: Hex, dir: EdgeDirection) -> (Hex, u16) {
+        let neighbor = hex.neighbor(dir);
+        let neighbor_id = self.find_id(neighbor) as u16;
+        (self.wrap(neighbor), neighbor_id)
     }
     pub fn neighbor_id(&self, hex: Hex, dir: EdgeDirection) -> (Hex, u32) {
         let neighbor = hex.neighbor(dir);
@@ -541,40 +551,43 @@ impl Board {
             visit_num: 1,
         };
 
-        fn dfs(state: &mut State, hex: Hex, parent: Hex) {
-            let id_hex = state.board.find_id(hex);
-            state.visited.insert(id_hex);
-            state.num[id_hex] = state.visit_num;
-            state.low[id_hex] = state.visit_num;
+        fn dfs(state: &mut State, id_hex: u16, id_parent: u16) {
+            state.visited.insert(id_hex as usize);
+            state.num[id_hex as usize] = state.visit_num;
+            state.low[id_hex as usize] = state.visit_num;
             state.visit_num += 1;
 
-            let root = hex == parent;
+            let root = id_hex == id_parent;
             let mut children = 0;
-            for (adj, id_adj) in state.board.adjacent_id(hex) {
+            for (adj, id_adj) in state
+                .board
+                .adjacent_id(state.board.nodes.hex_table[id_hex as usize])
+            {
                 let id_adj = id_adj as usize;
                 if !state.board.occupied(adj) {
                     continue;
                 }
-                if adj == parent {
+                if id_adj as u16 == id_parent {
                     continue;
                 }
                 if state.visited.contains(id_adj) {
-                    state.low[id_hex] = min(state.low[id_hex], state.num[id_adj]);
+                    state.low[id_hex as usize] = min(state.low[id_hex as usize], state.num[id_adj]);
                 } else {
-                    dfs(state, adj, hex);
-                    state.low[id_hex] = min(state.low[id_hex], state.low[id_adj]);
-                    if state.low[id_adj] >= state.num[id_hex] && !root {
-                        state.immovable.insert(id_hex);
+                    dfs(state, id_adj as u16, id_hex);
+                    state.low[id_hex as usize] = min(state.low[id_hex as usize], state.low[id_adj]);
+                    if state.low[id_adj] >= state.num[id_hex as usize] && !root {
+                        state.immovable.insert(id_hex as usize);
                     }
                     children += 1;
                 }
             }
             if root && children > 1 {
-                state.immovable.insert(id_hex);
+                state.immovable.insert(id_hex as usize);
             }
         }
         let start = self.queens[0];
-        dfs(&mut state, start, start);
+        let id_start = self.find_id(start) as u16;
+        dfs(&mut state, id_start, id_start);
         state.immovable
     }
 
