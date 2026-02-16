@@ -1,0 +1,19 @@
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+
+[profile.release]
+opt-level = 3          # Maximum optimizations (default: 3)
+lto = "fat"            # Link-time optimization across all crates
+codegen-units = 1      # Better optimization, slower compile
+panic = "abort"        # Remove unwinding code
+strip = true           # Remove debug symbols (Rust 1.59+)
+
+[profile.profiling]
+inherits = "release"
+debug = true
+
+[dependencies.hive_library]
+path = "../hive_library"
+

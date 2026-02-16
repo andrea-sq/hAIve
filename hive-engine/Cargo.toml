@@ -1,0 +1,8 @@
+[workspace]
+resolver = "3"
+members = ["training", "engine", "battler", "hive_library", "data_generation"]
+
+
+[profile.profiling]
+inherits = "release"
+debug = true

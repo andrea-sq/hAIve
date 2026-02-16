@@ -1,0 +1,29 @@
+[package]
+name = "hive_library"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bitfield = "0.19.4"
+color-eyre = "0.6.5"
+hexx = "0.24.0"
+#minimax = "0.5.4"
+
+minimax = { git = "https://github.com/edre/minimax-rs", rev = "be1867b38bd80a7ccdf2188f025525997a87437f" }
+old_rand = { package = "rand", version = "0.8.5" }
+rand = { version = "0.9.2" }
+git-version = "0.3.9"
+log = "0.4.29"
+env_logger = "0.11.8"
+pico-args = "0.5.0"
+serde = { version = "1.0.228", features = ["derive"] }
+csv = "1.4.0"
+serde_json = "1.0.149"
+serde-big-array = "0.5.1"
+
+[profile.release]
+opt-level = 3          # Maximum optimizations (default: 3)
+lto = "fat"            # Link-time optimization across all crates
+codegen-units = 1      # Better optimization, slower compile
+panic = "abort"        # Remove unwinding code
+strip = true           # Remove debug symbols (Rust 1.59+)
