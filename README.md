@@ -84,3 +84,11 @@ Questa sezione ti guiderà per configurare, compilare ed eseguire i vari moduli 
     cd target/release
     ./data-generation
     ```
+    
+### Come giocare contro l'engine
+
+1.  **Scaricare il [MzingaViewer](https://github.com/jonthysell/Mzinga)**
+
+2.  **Aprire MzingaViewer e da Viewer -> Viewer Options -> Engine cambiare il percorso di UHP engine a quello dell'engine compilato e premere OK**
+
+3.  **Da File -> New impostare uno dei due giocatori come engine e premero OK**
