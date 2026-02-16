@@ -16,8 +16,19 @@
 \usepackage{tabularx}
 \usepackage[all]{nowidow}
 \usepackage[backend=biber, sorting=none, style=numeric]{biblatex}
+\usepackage{tcolorbox}
+\usepackage{fancyvrb}
 
 \addbibresource{refs.bib}
+
+\DeclareUnicodeCharacter{221E}{$\infty$}
+\DeclareUnicodeCharacter{03B1}{$\alpha$}
+\DeclareUnicodeCharacter{03B2}{$\beta$}
+\DeclareUnicodeCharacter{2212}{$-$}
+\DeclareUnicodeCharacter{2265}{$\geq$}
+\DeclareUnicodeCharacter{018E}{\reflectbox{E}}
+\DeclareUnicodeCharacter{0418}{\reflectbox{N}}
+
 
 % Configurazione margini
 \geometry{
@@ -209,31 +220,334 @@
 	Per giungere ad una soluzione è necessario definire due componenti:
 	\begin{itemize}
 		\item \textbf{Algoritmo di esplorazione delle mosse.} Per ricercare la scelta più conveniente, non è sufficiente conoscere le mosse possibili in un dato istante, ma è necessario studiare le implicazioni di queste e quindi le possibili mosse $n$ turni nel futuro.
-		\item \textbf{Algoritmo di valutazione dello stato di gioco.} É impensabile esplorare completamente l'albero di gioco a causa dell'elevato \textit{fattore di ramificazione}, che ricordiamo essere pari a 60. Di conseguenza, è necessario poter usufruire di una nozione della bontà di un determinato stato di gioco.
+		\item \textbf{Algoritmo di valutazione dello stato di gioco.} È impensabile esplorare completamente l'albero di gioco a causa dell'elevato \textit{fattore di ramificazione}, che ricordiamo essere pari a 60. Di conseguenza, è necessario poter usufruire di una nozione della bontà di un determinato stato di gioco.
 	\end{itemize} 
-
+	
 	\subsection{Esplorazione mosse}
 	\subsubsection{Potatura alfa-beta}
+	La potatura alfa-beta è un algoritmo di ricerca che ha l'obiettivo di ridurre il numero di nodi esplorati dall'algoritmo minimax. Interrompe l'esplorazione di un nodo nel momento in cui determina che la mossa in oggetto sia sicuramente peggiore di almeno un'altra mossa precedentemente esplorata. Non è pertanto  necessario continuare a esplorare tali mosse.
 
-	\paragraph{Negamax}
+	\paragraph{Negamax} \hfill 
 
-	\paragraph{Young Brothers Wait}
+	La ricerca \textbf{negamax} è una variante dell'algoritmo minimax che sfrutta la proprietà di \textit{somma zero} di giochi come Hive. Semplifica l'implementazione dell'algoritmo minimax basandosi sulla seguente proprietà: $\min(a,b)=-\max(-b,-a)$. Ciò implica che il valore di una posizione del giocatore A è la negazione del valore del giocatore B, che permette di non dover dividere il processo di ricerca in due casi distinti. 
 
-	\paragraph{MTD(f)}
+	\begin{tcolorbox}[title=Algoritmo Negamax]
+	\begin{Verbatim}[tabsize=2]
+function negamax(node, depth, α, β, color) is
+	if depth = 0 or node is a terminal node then
+		return color × the heuristic value of node
 
-	%\paragraph{Ottimizzazioni}
+	childNodes := generateMoves(node)
+	childNodes := orderMoves(childNodes)
+	value := −∞
+	foreach child in childNodes do
+		value := max(value, −negamax(child, depth − 1, −β, −α, −color))
+		α := max(α, value)
+		if α ≥ β then
+			break (* cut-off *)
+	return value
+	\end{Verbatim}
+	\end{tcolorbox}
 
+	\newpage
+	\paragraph{Concetto Young Brothers Wait} \hfill
+
+	Il \textbf{concetto Young Brothers Wait} (YBWC) è un elemento fondamentale per la ricerca alfa-beta parallela, coniato da Rainer Feldmann et al. nel 1986 \cite{feldmann}.
+
+	I fratelli sono nodi che condividono lo stesso nodo padre. Il fratello maggiore, ovvero il primo rispetto ad una determinata funzione d'ordine, è esplorato per primo. I fratelli minori, prima di poter essere esplorati in parallelo, devono attendere che il fratello maggiore ceda il controllo a seguito di un taglio beta nella speranza che riduca i limiti dell'intervallo $[\alpha,\ \beta]$.
+
+	\begin{figure}[h]
+	\includegraphics[width=1\linewidth]{ybwc.png}
+	\caption{\small{Slide estratta dalla lezione di M. Frigo "The Cilk system for multi-threading programming"}}
+	\end{figure}
+
+	\paragraph{MTD(f)} \hfill
+
+	MTD(f) è un algoritmo di ricerca alfa-beta con finestra nulla e con tabella di trasposizione per memorizzare i risulati intermedi, creato da Aske Plaat.
+	Il nome è un'abbreviazone di MTD$(n,f)$ ovvero \textbf{Memory-enhanced Test Driver} con nodo $n$ e valore $f$.
+	
+	L'efficacia di questo paradigma dipende da una buona stima iniziale del valore finale minimax. In media, migliore è questa supposizone più efficiente sarà l'algoritmo, poiché dovrà svolgere meno passi prima di convergere al valore corretto. Se la stima corrisponde al valore minimax, eseguirà solo due passi: il primo necessario ad individuare il limite superiore del valore $x$ e il secondo per individuare il limite inferiore dello stesso valore.
+
+	All'interno del nostro motore di gioco viene utilizzato come stima il precedente valore di valutazione della board della precedente mossa, ad eccezione della prima mossa in cui la stima viene inizializzata a 0.
+
+	\begin{tcolorbox}[title=Algoritmo MTD(f)]
+	\begin{Verbatim}[tabsize=2]
+function MTDF(root, f, d) is
+	g := f
+	upperBound := +∞
+	lowerBound := −∞
+
+	while lowerBound < upperBound do
+		β := max(g, lowerBound + 1)
+		g := AlphaBetaWithMemory(root, β − 1, β, d)
+		if g < β then
+			upperBound := g 
+		else
+			lowerBound := g
+
+	return g
+	\end{Verbatim}
+	\end{tcolorbox}
+	
 	\subsubsection{Monte Carlo Tree Search}
+
+	MCTS è un algoritmo di \textbf{ricerca euristica} utilizzato per l'emulazione di processi decisionali, specialmente all'interno di software in grado di risolvere giochi da tavolo.
+	Nel 2016 è stata per la prima volta dimostrata l'efficacia di MCTS combinato con le reti neurali.
+
+	L'algoritmo è basato su esplorazioni randomiche dello spazio di ricerca, a partire dalle quali costruisce gradualmente un albero di gioco e migliora la propria accuratezza.
+
+	\paragraph{Le quattro fasi} \hfill
+
+	\begin{itemize}
+		\item \textbf{Selezione.} L'albero è esplorato dalla radice $R$ fino a raggiungere una foglia $L$, dove la radice è lo stato di gioco corrente e una foglia è qualsiasi nodo che ha figli non ancora esaminati.
+		\item \textbf{Espansione.} A meno che $L$ non termini il gioco in maniera decisiva, viene espanso un nodo figlio $C$.
+		\item \textbf{Simulazione.} Effettua una partita casuale a partire dal nodo $C$.
+		\item \textbf{Backpropagation.} Utilizza i risultati della partita per aggiornare le informazioni nei nodi sul percorso da $C$ a $R$.
+	\end{itemize}
+
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=0.8\linewidth]{mcts.pdf}
+		\caption{I 4 step della ricerca ad albero di Monte Carlo}
+	\end{figure}
 
 	\subsection{Valutazione stato di gioco}
 
 	\subsubsection{Funzioni euristiche}
+	L'obiettivo è la definizione di una funzione che restituisca una valutazione della bontà (di qui in avanti \textit{score}) del corrente stato dell'alveare. Abbiamo deciso di implementarla mediante la composizione dei seguenti fattori:
+	\begin{itemize}
+		\item \textbf{Valore dei pezzi.} A ogni pezzo è assegnato un valore.
+		\begin{itemize}
+			\item \textbf{Ape Regina}: 12
+			\item \textbf{Zanzara}: 8
+			\item \textbf{Formica}: 7
+			\item \textbf{Scarabeo}: 6
+			\item \textbf{Coccinella}: 6
+			\item \textbf{Onisco}: 5
+			\item \textbf{Cavalletta}: 3
+			\item \textbf{Ragno}: 2
+		\end{itemize}
+		\item \textbf{Pezzi non in gioco.} Per ogni diversa creatura viene calcolata la differenza tra i pezzi non in gioco propri e dell'avversario. Questa viene poi moltiplicata per il valore della creatura e il fattore di pezzo non giocato. Viene premiato l'avere meno pezzi in gioco rispetto all'avversario.
+		\item \textbf{Pezzi mobili in gioco.} Lo score viene calcolato moltiplicando il valore dei pezzi per il fattore di mobilità delle creature. Inoltre, il valore dei pezzi disposti sopra l'alveare è doppio.
+		\item \textbf{Libertà dell'Ape Regina.} Per ogni pezzo adiacente alla propria Ape Regina viene rimosso dallo score il fattore di libertà e, in maniera inversa, per ogni pezzo adiacente all'Ape Regina nemica il fattore viene sommato allo score.
+		\item \textbf{Versatilità della Zanzara.} Quando è in gioco, il valore della Zanzara corrisponde alla somma tra il numero di pezzi adiacenti ad essa e il valore massimo tra le creature adiacenti, fatta eccezione per le Api Regina e l'altra Zanzara.
+		\item \textbf{Onisco's Law.} Se il proprio Onisco è in grado di spostare la propria Ape Regina in una posizone tale che vi siano più di due spazi liberi adiacenti ad essa, allo score viene sommato il fattore di difesa della Regina.
+		In modo inverso, se l'Onisco avversario è in grado di effettuare la stessa mossa con l'Ape Regina avversaria, il fattore è sottratto allo score.
+		Inoltre, se è possibile piazzare un Onisco vicino all'Ape Regina viene sommato (o, nel caso inverso, sottratto) metà del fattore di difesa allo score.
 
+	\end{itemize}
+	
+	\newpage
 	\subsubsection{NNUE}
 
+	NNUE, spesso rappresentata come ƎUИИ, è l'acronimo di \textbf{Efficiently Updatable Neural Networks}.
+
+	Viene utilizzata in giochi strategici virtuali, come \textit{Shogi} o \textit{scacchi}, come funzione di valutazione basata su rete neurale i cui input sono array di valori booleani che identificano una specifica combinazione (pezzo, cella). Fa affidamento sulla limitatezza della variazione di stato ad ogni mossa, tipico di questa categoria di giochi.
+
+	La rete è stata inventata da Yu Nasu ed introdotta all'interno di Shogi online nel 2018. Nell'agosto 2020 fu per la prima volta utilizzata all'interno di un software di scacchi, Stockfish 12, risultando in un incremento importante della forza di gioco dell'engine.
+
+	Le NNUE sono progettate affinchè possano essere eseguite efficientemente su CPU, utilizzando tecniche di computazione incrementale e sfruttando l'architettura SIMD. Questo va in contrapposizione ai motori scacchistici basati su reti neurali profonde, come \textit{Leela Chess Zero}, che necessitano di una GPU per inferire.
+
+	\begin{figure}[h]
+	\begin{center}
+	\includegraphics[width=0.3\linewidth]{nue.jpg} 
+	\end{center}
+	\caption{L'acronimo è un gioco di parole che fa riferimento alla figura mitologica giapponese \textit{Nue}}
+	\end{figure}
+
+	\paragraph{Architettura} \hfill
+
+	Nella sua forma più semplice, una rete NNUE è composta da tre livelli: 
+	\begin{itemize}
+		\item \textbf{Input layer.} La dimensione nella nostra rappresentazione di Hive è pari a $17704$ neuroni. 
+		Questo numero corrisponde alla somma dei prodotti tra numero di celle presenti nella mappa esagonale $*$ numero totale di pezzi e tra le sei altezze al di sopra dell'alveare $*$ i sei diversi pezzi in grado di salire sull'alveare.
+		\item \textbf{Hidden layer.} Generalmente la dimensione di questo strato è arbitraria. Nonostante ciò è usuale utilizzare potenze di due, particolarmente nel range $[256, 1024]$.
+		\item \textbf{Output layer.} Questo livello corrisponde alla predizione del modello ed è perciò costituito da un solo neurone.
+	\end{itemize}
+	
+	\newpage
+	\paragraph{Perspective} \hfill
+
+	La maggior parte delle architetture NNUE gestisce separatamente le prospettive degli avversari mediante due accumulatori distinti.
+	Entrambe le prospettive usano pesi e bias di input identici. Durante il processo di inferenza, i due accumulatori sono concatenati e ordinati in modo alternato in base al turno di gioco. Il vettore risultante, di dimensione doppia rispetto ai singoli accumulatori, è il "vero" \textit{hidden layer} ed è ciò che viene inoltrato all'\textit{output layer}.
+
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=0.9\linewidth]{nnue.png}
+		\caption{Esempio di architettura NNUE per il gioco degli scacchi}
+	\end{figure}
+	
+	\newpage
 	\section{Confronto tra le implementazioni}
 
+	\subsection{Specifiche hardware}
+
+	Tutte le misurazioni sono eseguite su una macchina avente le seguenti specifiche:
+	\begin{itemize}
+		\item \textbf{CPU:} Intel Core i7-14700HX 5.5 GHz
+		\item \textbf{Memoria:} 32 GiB di RAM
+	\end{itemize}
+
+	\subsection{Implementazioni con funzione eurisitca}
+
+	\subsubsection{Negamax vs Random}
+	Questo confronto fornisce una valutazione della competitività del nostro agente Negamax contro un agente che effettua mosse randomiche (di qui in avanti \textit{Random}), in modo tale da verificare la validità dell'agente implementato.
+
+	La valutazione è effettuata in base alla percentuale di vittorie su un campione di 1000 partite, considerando un tempo massimo per mossa di un secondo ($1s$) e alternando quale agente sia il primo giocatore.
+
+	\begin{table}[h]
+	\begin{center}
+	\begin{tabular}{||l|c|c|c||}
+	\hline
+	Tipologia                                & Negamax & Random & Pareggi \\ \hline 
+	Totale delle partite                     &  100\%  &   0\%  &   0\%   \\ 
+	Negamax bianco (effettua la prima mossa) &  100\%  &   0\%  &   0\%   \\ 
+	Negamax nero (effettua la seconda mossa) &  100\%  &   0\%  &   0\%   \\ \hline
+	\end{tabular}
+	\end{center}
+	\end{table}
+
+	\subsubsection{MCTS vs Random}
+	Questo confronto fornisce una valutazione della competitività del nostro agente Monte Carlo Tree Search contro un agente \textit{Random}, in modo tale da verificare la validità dell'agente implementato.
+
+	La valutazione è effettuata in base alla percentuale di vittorie su un campione di 100 partite, considerando un tempo massimo per mossa di un secondo ($1s$) e alternando quale agente sia il primo giocatore. All'agente MCTS sono stati forniti 5 rollout prima di espandere un nodo figlio ed è stata imposta una profondità massima di 200 nodi per rollout.
+
+	\begin{table}[h]
+	\begin{center}
+	\begin{tabular}{||l|c|c|c||}
+	\hline
+	Tipologia                                &  MCTS   & Random & Pareggi \\ \hline 
+	Totale delle partite                     &  100\%  &   0\%  &   0\%   \\ 
+	MCTS bianco (effettua la prima mossa)    &  100\%  &   0\%  &   0\%   \\ 
+	MCTS nero (effettua la seconda mossa)    &  100\%  &   0\%  &   0\%   \\ \hline
+	\end{tabular}
+	\end{center}
+	\end{table}
+
+	\newpage
+	\subsubsection{Negamax vs Young Brothers Wait}
+	Young Brothers Wait offre un'ottimizzazione dell'algoritmo Negamax, sfruttando la parallelizzazione.
+
+	Per verificare che YBWC implichi un effettivo miglioramento delle prestazioni per il gioco di Hive, all'agente sono stati forniti 4 thread e sono state effettuate 200 partite, considerando un tempo massimo per mossa di un secondo ($1s$) e alternando quale agente sia il primo giocatore.
 	
+	\begin{table}[h]
+	\begin{center}
+	\begin{tabular}{||l|c|c|c||}
+	\hline
+	Tipologia                                & Negamax &  YBWC  & Pareggi \\ \hline 
+	Totale delle partite                     &  91\%  &   4\%   &   5\%   \\ 
+	Negamax bianco (effettua la prima mossa) &  96\%  &   2\%   &   2\%   \\ 
+	Negamax nero (effettua la seconda mossa) &  86\%  &   6\%   &  	8\%   \\ \hline
+	\end{tabular}
+	\end{center}
+	\end{table}
+
+	Il risultato si distacca dalle aspettative. Attribuiamo le cattive performace dell'algoritmo Young Brothers Wait Concept all'overhead dato dal parallelismo e alla forte componente aleatoria che caratterizza il suo comportamento. 
+
+
+	\subsubsection{Negamax vs MTD(f)}
+	MTD(f) offre un'ottimizzazione dell'algoritmo Negamax, sfruttando la proprietà \textit{zero-window}.
+
+	Per verificare che MTD(f) implichi un effettivo miglioramento delle prestazioni per il gioco di Hive, all'agente è stata fornita una tabella di trasposizione di 512 MiB e sono state effettuate 200 partite, considerando un tempo massimo per mossa di un secondo ($1s$) e alternando quale agente sia il primo giocatore.
+
+	\begin{table}[h]
+	\begin{center}
+	\begin{tabular}{||l|c|c|c||}
+	\hline
+	Tipologia                                & Negamax & MTD(f) & Pareggi \\ \hline 
+	Totale delle partite                     &  41\%   & 56,5\% &  2,5\%  \\ 
+	Negamax bianco (effettua la prima mossa) &  55\%   &  42\%  &   3\%   \\ 
+	Negamax nero (effettua la seconda mossa) &  27\%   &  71\%  &   2\%   \\ \hline
+	\end{tabular}
+	\end{center}
+	\end{table}
+
+	A livello globale l'algoritmo MTD(f) esibisce prestazioni migliori. Tuttavia, è importante evidenziare quanto sia discriminante il ruolo della prima mossa.
+
+
+	\subsubsection{MTD(f) vs MCTS}
+
+	Dati i precedenti risultati MTD(f) risulta essere l'algoritmo migliore tra gli algoritmi alfa-beta. Abbiamo quindi ritentuo rilevante confrontarlo con Monte Carlo Tree Search, notoriamente un ottimo algorimto per la risoluzione di giochi da tavolo strategici come Go, Dama e Backgammon.
+
+	Per il confronto sono state effettuate 200 partite, considerando un tempo massimo per mossa di un secondo ($1s$) e alternando quale agente sia il primo giocatore. Le impostazioni dei due agenti rimangono consistenti con quelle definite precedentemente.
+
+	\begin{table}[h]
+	\begin{center}
+	\begin{tabular}{||l|c|c|c||}
+	\hline
+	Tipologia                                &  MTD(F) &  MCTS  & Pareggi \\ \hline 
+	Totale delle partite                     &  100\%  &   0\%  &   0\%   \\ 
+	MCTS bianco (effettua la prima mossa)    &  100\%  &   0\%  &   0\%   \\ 
+	MCTS nero (effettua la seconda mossa)    &  100\%  &   0\%  &   0\%   \\ \hline
+	\end{tabular}
+	\end{center}
+	\end{table}
+
+	È possibile che l'algoritmo Monte Carlo Tree Search non sia compatibile con il dominio del gioco di Hive.
+
+	\newpage
+	\subsection{Implementazione di NNUE}
+	Ci siamo informati su questa tecnologia in quanto riteniamo che possa avere molto potenziale, tuttavia non siamo riusciti ad addestrare una rete neurale NNUE che aprossimi la nostra funzione di valutazione dello stato di gioco.
+
+	Riportiamo comunque di seguito il lavoro svolto a proposito a fini di documentazione.
+
+	\subsubsection{Generazione dati sintetici}
+	Per la generazione dei dati sintetici sono state effettuate circa $600\hspace{1px}000$ partite tra due agenti Random. Per ognuna di esse è stato estratto uno stato di gioco casuale, compreso tra la cinquantesima e la cinquecentesima mossa.
+
+	Tra le informazioni riportate da uno stato di gioco sono incluse:
+	\begin{itemize}
+		\item la valutazione della nostra funzione euristica.
+		\item il \textit{side to move}, ovvero a quale dei due giocatori tocca effettuare una mossa.
+		\item le feature viste dalla prospettiva del giocatore 1.
+		\item le feature viste dalla prospettiva del giocatore 2.
+	\end{itemize}
+
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=0.8\linewidth]{datadistr.jpeg}
+		\caption{Distribuzione degli score dei nostri dati sintetici}
+	\end{figure}
+
+	I dati così generati sono stati partizionati randomicamente in tre categorie: \textbf{training} costituita dal 60\% del totale, \textbf{validation} costituita dal 20\%, e \textbf{testing} costituita dal restante 20\%.
+
+	\newpage
+	\subsubsection{Addestramento della rete neurale}
+	Abbiamo tentato di replicare i risultati riportati dagli sviluppatori di \textit{Stockfish} \cite{nnue}.
+	\begin{itemize}
+		\item L'\textbf{architettura} della rete è costituita da due \textit{hidden layer}, composti rispettivamente da 512 e 32 neuroni.
+		\item La \textbf{funzione di attivazione} utilizzata, necessaria ad introdurre non linearità nel modello, è \textit{Clipped ReLU}, che ottiene migliori risultati a livello di performance rispetto alla classica \textit{ReLU}.
+		Un ulteriore tentativo è stato utilizzare la funzione \textit{Quantmoid4}, senza però ottenere alcun beneficio.
+		\item La \textbf{funzione di loss} è calcolata mediante l'errore quadratico medio tra lo \textit{score} e la predizione del modello.
+		Prima che venga calcolata la loss, entrambi i valori sono divisi per uno scaling factor di $40$ e vi è applicata la funzione sigmoide.
+		\item L'\textbf{ottimizzatore} adoperato è \textit{Adam}, Adaptive Moment Estimation, poichè riporta risultati vantaggiosi applicato ad altre reti neurali. Il learning rate è impostato a $10^{-5}$.
+		\item Il \textbf{numero di epoche} è stato impostato a $800$.
+		\item La \textbf{batch size} è stata impostata a $64$ per limitazioni hardware.
+	\end{itemize}
+	 
+
+	\paragraph{Specifiche hardware} \hfill
+
+	\begin{itemize}
+		\item \textbf{CPU:} Intel Core i7-14700HX 5.5 GHz
+		\item \textbf{Memoria:} 32 GiB di RAM
+		\item \textbf{GPU:} NVIDIA GeForce RTX 4070 Max-Q / Mobile
+	\end{itemize}
+
+	\paragraph{Risultati del training} \hfill
+
+	Purtroppo
+	probabile rete più grande necessaria a causa della complessità della funzione euristica
+	difficoltà a causa di algorimto di punti di articolazione che serve a trovare i pezzi in gioco ma immobilizzati
+	rete più grande però sconfigge scopo della NNUE che deve rimanere piccola
+	2 strade
+	provare a vedere qual è la minima dimensione che riesce ad apprendere
+	trovare funzione euristica più semplice da approssimare ma che comunque porti a buoni risultati
+	in generale a livello di risultati la rete non riesce ad apprendere affatto e qualsiasi tentativo si conclude inevitabilmente in overfitting
+
+	abbiamo tentato di introdurre dropout, cambiare architettura di rete cambiare gli iperparametri cambiare rappresentazione dei dati senza risultati
+
+
+
 	\newpage
 	\printbibliography
 
