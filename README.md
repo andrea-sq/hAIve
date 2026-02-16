@@ -17,33 +17,69 @@ In `haive-engine` si trova il codice sorgente del proggetto, scritto totalmente 
 - `trainig`: Modulo per allenare la rete neurale.
 
 ## Installazione ed uso
-Questa sezione ti guiderà per configurare ed eseguire il progetto.
+Questa sezione ti guiderà per configurare, compilare ed eseguire i vari moduli del progetto.
 
-- ### Prerequisiti
+### Prerequisiti
 -   **Rust Toolchain**: L'ultima versione di Rust e Cargo installati sulla macchina.
-
--   ### Compilazione ed esecuzione dell'engine
-
-1.  **Clona la repository**
+-  **Clona la repository**
     ```bash
     git clone https://github.com/andrea-sq/hAIve.git
     cd hAIve
     ```
+### Compilazione ed esecuzione dell'engine
 
-2.  **Entra nel crate `hive-engine`**
+1.  **Entra nel crate `hive-engine`**
     ```bash
     cd hive-engine
     ```
 
-3.  **Compila il progetto**
-    Esegui il build dell'intero progetto nella subdirectory `hive-engine` con tutte le librerire ed eseguibili associati.
+2.  **Compila il progetto**
+    Esegui il build dell'engine, il core del progetto, nella subdirectory `hive-engine` con tutte le librerire ed eseguibili associati.
     ```bash
     cargo build --release --bin engine
     ```
 
-4.  **Esegui**
-    Se la compilazione è andata a buon fine, `hive-engine/cargo/release` conterrà un target eseguibile:
+3.  **Esegui**
+    Se la compilazione è andata a buon fine, `hive-engine/cargo/release` conterrà il target eseguibile `engine`:
     ```bash
     cd cargo/release
     ./engine
+    ```
+
+### Compilazione ed esecuzione del tool di confronto
+1.  **Entra nel crate `hive-engine`**
+    ```bash
+    cd hive-engine
+    ```
+
+2.  **Compila il progetto**
+    Esegui il build del modulo `battler` nella subdirectory `hive-engine` con tutte le librerire ed eseguibili associati.
+    ```bash
+    cargo build --release --battler battler
+    ```
+
+3.  **Esegui**
+    Se la compilazione è andata a buon fine, `hive-engine/cargo/release` conterrà il target eseguibile `battler`:
+    ```bash
+    cd cargo/release
+    ./battler
+    ```
+
+### Compilazione ed esecuzione del tool di generazione dati
+1.  **Entra nel crate `hive-engine`**
+    ```bash
+    cd hive-engine
+    ```
+
+2.  **Compila il progetto**
+    Esegui il build del modulo `data_generation` nella subdirectory `hive-engine` con tutte le librerire ed eseguibili associati.
+    ```bash
+    cargo build --release --data-generation data-generation
+    ```
+
+3.  **Esegui**
+    Se la compilazione è andata a buon fine, `hive-engine/cargo/release` conterrà il target eseguibile `data-generation`:
+    ```bash
+    cd cargo/release
+    ./data-generation
     ```
