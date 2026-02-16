@@ -14,7 +14,7 @@ In `hive-engine` si trova il codice sorgente del proggetto, scritto totalmente i
 - `dataset`: Directory con i file generati per training e validation.
 - `engine`: Modulo per avviare il server UHP.
 - `hive_library`: Modulo centrale del progetto, è presente tutta la logica di gioco e del modello. Sono presenti la rappresentazione della board di gioco e dei pezzi per Minimax e NNUE, la rappresentazione dei player, il codice per eseguire partite e per implementare il server ed il client UHP.
-- `trainig`: Modulo per allenare la rete neurale.
+- `training`: Modulo per allenare la rete neurale.
 
 ## Installazione ed uso
 Questa sezione ti guiderà per configurare, compilare ed eseguire i vari moduli del progetto.
