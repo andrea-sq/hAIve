@@ -110,3 +110,14 @@ http-client.private.env.json
 /hive-engine/results.txt
 /.idea/inspectionProfiles/Project_Default.xml
 /.idea/misc.xml
+
+
+hive-engine/dataset
+hive-engine/dataset/*
+hive-engine/dataset/test.json
+hive-engine/dataset/train.json
+
+hive-engine/batch_execution.py
+hive-engine/results*
+hive-engine/haive_training_results
+hive-engine/training/haive_training_results
