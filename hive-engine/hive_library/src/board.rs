@@ -1,12 +1,14 @@
 use crate::bug::Bug;
 use crate::hex_grid::{Hex, HexGrid};
 use crate::hexset::HexSet;
-use bitfield::bitfield;
 use hexx::storage::{HexModMap, HexStore};
 use hexx::{EdgeDirection, HexBounds};
 use minimax::Winner;
+use modular_bitfield::prelude::*;
+use std::cell::{Cell, LazyCell};
 use std::cmp::{max, min};
 use std::hash::{DefaultHasher, Hasher};
+use std::mem::MaybeUninit;
 use std::sync::OnceLock;
 
 pub(crate) const START_HEX: Hex = Hex(0);
@@ -19,7 +21,12 @@ static ID_TABLE: OnceLock<[[usize; 29]; 29]> = OnceLock::new();
 static HEX_TABLE: OnceLock<[hexx::Hex; GRID_SIZE]> = OnceLock::new();
 static OUT_OF_MAP_TABLE: OnceLock<[[hexx::Hex; 31]; 31]> = OnceLock::new();
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+thread_local! {
+    pub static STATE_ADDR: Cell<usize> = Cell::new(0);
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Specifier)]
+#[bits = 1]
 pub enum Color {
     White = 0,
     Black = 1,
@@ -52,23 +59,35 @@ impl Color {
     }
 }
 
-bitfield! {
-    #[derive(Clone, Copy)]
-    pub struct Node(u8);
-    impl Debug;
-    pub u8, from try_into Color, get_color, set_color: 7, 7;
-    pub u8, from try_into Bug, get_bug, set_bug: 6, 4;
-    pub get_bug_num, set_bug_num: 3, 2;
-    pub get_tile_height, set_tile_height: 1, 0;
+#[bitfield(bits = 6)]
+#[derive(Specifier, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BugId {
+    #[bits = 1]
+    pub color: Color,
+    #[bits = 3]
+    pub bug: Bug,
+    pub bug_num: B2,
+}
+
+#[bitfield(bits = 8)]
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Node {
+    #[bits = 1]
+    pub color: Color,
+    #[bits = 3]
+    pub bug: Bug,
+    pub bug_num: B2,
+    pub tile_height: B2,
 }
 
 impl Node {
     pub(crate) fn empty() -> Self {
-        Node(0)
+        Node::new()
     }
 
     pub(crate) fn new_occupied(bug: Bug, color: Color, bug_num: u8, clipped_height: u8) -> Self {
-        let mut node = Node(0);
+        let mut node = Node::new();
         node.set_bug(bug);
         node.set_color(color);
         node.set_bug_num(bug_num);
@@ -77,11 +96,16 @@ impl Node {
     }
 
     pub(crate) fn occupied(&self) -> bool {
-        self.0 != 0
+        Into::<u8>::into(*self) != 0u8
     }
 
-    pub(crate) fn is_stacked(self) -> bool {
-        self.get_tile_height() > 1
+    pub(crate) fn is_stacked(&self) -> bool {
+        self.tile_height() > 1
+    }
+
+    pub(crate) fn bug_id(&self) -> u8 {
+        // TODO: Make it somehow more robust
+        Into::<u8>::into(*self) & 0b111111
     }
 }
 
@@ -162,6 +186,14 @@ impl Board {
         hex
     }
 
+    #[inline]
+    pub fn adjacent_vec(&self, hex: Hex) -> &'static [Hex; 6] {
+        // let hex_bounds = self.nodes.bounds();
+        // let mut res = hex.all_neighbors();
+
+        hex.neighbors()
+    }
+
     pub fn adjacent(&self, hex: Hex) -> impl Iterator<Item = Hex> {
         // let hex_bounds = self.nodes.bounds();
         // let mut res = hex.all_neighbors();
@@ -199,7 +231,7 @@ impl Board {
     }
 
     fn underworld_height(&self, hex: Hex, node: Node) -> u8 {
-        let height = node.get_tile_height();
+        let height = node.tile_height();
         if height > 2 {
             1 + self.underworld[..self.underworld_size]
                 .iter()
@@ -246,15 +278,15 @@ impl Board {
     fn insert(&mut self, hex: Hex, bug: Bug, bug_num: u8, color: Color) {
         let prev = self.node(hex);
         if prev.occupied() {
-            if prev.get_color().unwrap() != color {
-                self.occupied_remove(prev.get_color().unwrap(), hex);
+            if prev.color() != color {
+                self.occupied_remove(prev.color(), hex);
                 self.occupied_add(color, hex);
             }
             self.insert_underworld(prev, hex);
         } else {
             self.occupied_add(color, hex);
         }
-        let tile_height = min(3, prev.get_tile_height() + 1);
+        let tile_height = min(3, prev.tile_height() + 1);
         self.nodes[hex] = Node::new_occupied(bug, color, bug_num, tile_height);
 
         //NNUE board snippet
@@ -307,10 +339,10 @@ impl Board {
             Node::empty()
         };
         self.nodes[hex] = new_node;
-        let bug = prev.get_bug().unwrap();
-        let color = prev.get_color().unwrap();
+        let bug = prev.bug();
+        let color = prev.color();
         if new_node.occupied() {
-            let new_color = new_node.get_color().unwrap();
+            let new_color = new_node.color();
             if new_color != color {
                 self.occupied_remove(color, hex);
                 self.occupied_add(new_color, hex);
@@ -322,7 +354,7 @@ impl Board {
         if bug == Bug::Queen {
             self.queens[color as usize] = START_HEX;
         }
-        (bug, prev.get_bug_num(), color)
+        (bug, prev.bug_num(), color)
     }
 
     pub(crate) fn get_available_bugs(&self) -> [(Bug, u8); 8] {
@@ -361,7 +393,7 @@ impl Board {
                 game_type_bits |= 1 << i;
             }
         }
-        let nodes = HexModMap::new(hexx::Hex::ZERO, GRID_RADIUS as u32, |_| Node(0));
+        let nodes = HexModMap::new(hexx::Hex::ZERO, GRID_RADIUS as u32, |_| Node::empty());
 
         let id_table = ID_TABLE.get_or_init(|| {
             let mut table = [[0; 29]; 29];
@@ -390,7 +422,8 @@ impl Board {
         let out_of_map_table = OUT_OF_MAP_TABLE.get_or_init(|| {
             let mut table = [[hexx::Hex::ZERO; 31]; 31];
             let hex_bounds = nodes.bounds();
-            let faux_nodes = HexModMap::new(hexx::Hex::ZERO, GRID_RADIUS as u32 + 1, |_| Node(0));
+            let faux_nodes =
+                HexModMap::new(hexx::Hex::ZERO, GRID_RADIUS as u32 + 1, |_| Node::empty());
 
             for (hex, _) in faux_nodes.iter() {
                 let x = (hex.x + GRID_RADIUS as i32 + 1) as usize;
@@ -525,24 +558,77 @@ impl Board {
     }
 
     pub(crate) fn find_cut_vertices(&self) -> HexSet {
-        struct State<'a> {
-            board: &'a Board,
-            visited: HexSet,
-            immovable: HexSet,
-            num: [u8; GRID_SIZE],
-            low: [u8; GRID_SIZE],
-            visit_num: u8,
+        const NUM_BUG: usize = 28;
+        let mut visited_bug = [false; NUM_BUG];
+        let mut visited = HexSet::new();
+        let mut disc = [0; GRID_SIZE];
+        let mut low = [0; GRID_SIZE];
+        let mut parent = [-1; GRID_SIZE];
+        let mut articulation_points = HexSet::new();
+        let mut time = 0;
+        let mut children_count = [0; GRID_SIZE];
+
+        let mut stack: [MaybeUninit<(Hex, u8, u8)>; 60] = [const { MaybeUninit::uninit() }; 60];
+
+        let start = self.queens[0];
+
+        let mut top = 0i32;
+        stack[top as usize].write((start, 0, 0));
+        top += 1;
+
+        while top > 0 {
+            //println!("{index_array}");
+            let (hex, neighbor_idx, state) = unsafe { stack[top as usize - 1].assume_init() };
+            top -= 1;
+
+            let hex_idx = hex.0 as usize;
+            let bug_hex_id = self.node(hex).bug_id();
+
+            if state == 0 {
+                if !visited.contains(hex_idx) {
+                    visited.insert(hex_idx);
+                    time += 1;
+                    disc[hex_idx] = time;
+                    low[hex_idx] = time;
+                }
+                if neighbor_idx < 6 {
+                    let v = self.adjacent_vec(hex)[neighbor_idx as usize];
+                    stack[top as usize].write((hex, neighbor_idx + 1, 0));
+                    top += 1;
+                    if !self.occupied(v) {
+                        continue;
+                    }
+
+                    if !visited.contains(v.0 as usize) {
+                        parent[v.0 as usize] = hex_idx as i32;
+                        children_count[hex_idx] += 1;
+                        stack[top as usize].write((v, 0, 0));
+                        top += 1;
+                    } else if v.0 as i32 != parent[hex_idx] {
+                        low[hex_idx] = min(low[hex_idx], disc[v.0 as usize]);
+                    }
+                } else {
+                    stack[top as usize].write((hex, 0, 1));
+                    top += 1;
+                }
+            } else {
+                if top > 0 {
+                    let p = unsafe { stack[top as usize - 1].assume_init().0 };
+                    low[p.0 as usize] = min(low[p.0 as usize], low[hex_idx]);
+
+                    if parent[p.0 as usize] != -1 && low[hex_idx] >= disc[p.0 as usize] {
+                        articulation_points.insert(p.0 as usize);
+                    }
+                } else if children_count[start.0 as usize] > 1 {
+                    articulation_points.insert(start.0 as usize);
+                }
+            }
         }
 
-        let mut state = State {
-            board: self,
-            visited: HexSet::new(),
-            immovable: HexSet::new(),
-            num: [0; GRID_SIZE],
-            low: [0; GRID_SIZE],
-            visit_num: 1,
-        };
+        //dfs_ap(start, start);
+        articulation_points
 
+        /*
         fn dfs(state: &mut State, hex: Hex, parent: Hex) {
             state.visited.insert(hex.0 as usize);
             state.num[hex.0 as usize] = state.visit_num;
@@ -577,6 +663,54 @@ impl Board {
         let start = self.queens[0];
         dfs(&mut state, start, start);
         state.immovable
+
+        let state_ref = &mut state;
+        let state_pointer = state_ref as *mut State;
+        let state_addr = state_pointer as usize;
+
+        unsafe {
+            STATE_ADDR.set(state_addr);
+
+            fn dfs_ap(hex: Hex, parent: Hex) {
+                let u = hex.0 as usize;
+                let state_ap: &mut State = unsafe { &mut *(STATE_ADDR.get() as *mut State) };
+
+                state_ap.visited.insert(u);
+                state_ap.num[u] = state_ap.visit_num;
+                state_ap.low[u] = state_ap.visit_num;
+                state_ap.visit_num += 1;
+
+                let root = hex == parent;
+                let mut children = 0;
+
+                for adj in state_ap.board.adjacent(hex) {
+                    let id_adj = adj.0 as usize;
+                    if !state_ap.board.occupied(adj) {
+                        continue;
+                    }
+                    if adj == parent {
+                        continue;
+                    }
+                    if state_ap.visited.contains(id_adj) {
+                        state_ap.low[u] = min(state_ap.low[u], state_ap.num[id_adj]);
+                    } else {
+                        dfs_ap(adj, hex);
+                        state_ap.low[u] = min(state_ap.low[u], state_ap.low[id_adj]);
+                        if state_ap.low[id_adj] >= state_ap.num[u] && !root {
+                            state_ap.immovable.insert(u);
+                        }
+                        children += 1;
+                    }
+                }
+                if root && children > 1 {
+                    state_ap.immovable.insert(u);
+                }
+            }
+            let start = self.queens[0];
+            dfs_ap(start, start);
+            state.immovable
+        }
+        */
     }
 
     pub(crate) fn slideable_adjacent<'a>(
@@ -791,7 +925,7 @@ impl Board {
         for adj in self.adjacent(hex) {
             let node = self.nodes[adj];
             if node.occupied() {
-                targets[node.get_bug().unwrap() as usize] = true;
+                targets[node.bug() as usize] = true;
             }
         }
 
@@ -856,12 +990,12 @@ impl Board {
             if stunned == Some(&hex) {
                 continue;
             }
-            if node.get_bug().unwrap() == Bug::Pillbug
-                || (node.get_bug().unwrap() == Bug::Mosquito
+            if node.bug() == Bug::Pillbug
+                || (node.bug() == Bug::Mosquito
                     && !node.is_stacked()
                     && self.adjacent(hex).any(|adj| {
                         let n = self.node(adj);
-                        n.occupied() && n.get_bug().unwrap() == Bug::Pillbug
+                        n.occupied() && n.bug() == Bug::Pillbug
                     }))
             {
                 self.generate_throws(&immovable, hex, turns, &mut throw_starts, &mut throw_ends);
@@ -890,7 +1024,7 @@ impl Board {
             if immovable.contains(self.find_id(hex)) {
                 continue;
             }
-            match node.get_bug().unwrap() {
+            match node.bug() {
                 Bug::Queen => self.generate_walk1(hex, turns),
                 Bug::Grasshopper => self.generate_jumps(hex, turns),
                 Bug::Spider => self.generate_walk3(hex, turns),

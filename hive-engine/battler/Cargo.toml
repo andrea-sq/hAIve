@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 pico-args = "0.5.0"
+rec-closure = "0.1.2"
 
 [profile.release]
 opt-level = 3          # Maximum optimizations (default: 3)
@@ -14,8 +15,8 @@ panic = "abort"        # Remove unwinding code
 strip = true           # Remove debug symbols (Rust 1.59+)
 
 [profile.profiling]
-inherits = "release"
 debug = true
+strip = false           
 
 
 [dependencies.hive_library]

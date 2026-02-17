@@ -14,4 +14,6 @@ strip = true           # Remove debug symbols (Rust 1.59+)
 
 [profile.profiling]
 inherits = "release"
+strip = false
 debug = true
+

@@ -316,8 +316,8 @@ pub fn configure_player() -> Result<(PlayerConfig, Vec<String>), pico_args::Erro
         "random" => PlayerStrategy::Random,
         "mcts" => {
             let mut options = MCTSOptions::default()
-                .with_max_rollout_depth(200)
-                .with_rollouts_before_expanding(5);
+                .with_max_rollout_depth(300)
+                .with_rollouts_before_expanding(2);
             options.verbose = config.opts.verbose;
             PlayerStrategy::Mcts(options)
         }

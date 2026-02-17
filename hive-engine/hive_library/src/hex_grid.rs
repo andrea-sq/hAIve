@@ -1,6 +1,6 @@
+use crate::Node;
 use crate::board::GRID_SIZE;
 use crate::hex_grid::neighbor_table::NEIGHBOR_TABLE;
-use crate::Node;
 use hexx::EdgeDirection;
 use std::ops::IndexMut;
 
@@ -9,6 +9,8 @@ pub struct Hex(pub u16);
 
 impl Hex {
     pub const ZERO: Hex = Hex(0);
+
+    #[inline]
     pub fn neighbors(&self) -> &'static [Hex; 6] {
         &NEIGHBOR_TABLE[self.0 as usize]
     }

@@ -110,3 +110,7 @@ http-client.private.env.json
 /hive-engine/results.txt
 /.idea/inspectionProfiles/Project_Default.xml
 /.idea/misc.xml
+/hive-engine/battler/perf.data
+/hive-engine/battler/perf.data.old
+/hive-engine/hive_library/src/_copy_board_rs.bak
+/hive-engine/perf.data

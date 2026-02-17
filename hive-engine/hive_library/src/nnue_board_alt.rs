@@ -43,9 +43,9 @@ impl NNUEBoard {
     }
 
     fn get_piece_number(node: Node) -> usize {
-        let bug = node.get_bug().unwrap();
-        let bug_num = node.get_bug_num();
-        let color = node.get_color().unwrap();
+        let bug = node.bug();
+        let bug_num = node.bug_num();
+        let color = node.color();
 
         match (bug, bug_num, color) {
             //WHITE
@@ -128,9 +128,9 @@ impl NNUEBoard {
     fn get_height_index(node: Node) -> usize {
         let starting_index = 28 * 27 * 3;
 
-        let bug = node.get_bug().unwrap();
-        let bug_num = node.get_bug_num();
-        let color = node.get_color().unwrap();
+        let bug = node.bug();
+        let bug_num = node.bug_num();
+        let color = node.color();
 
         let offest_index = match (bug, bug_num, color) {
             (Bug::Beetle, 1, Color::White) => 0,

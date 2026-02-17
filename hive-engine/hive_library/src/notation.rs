@@ -1,4 +1,4 @@
-use crate::board::{Board, Color, Node, Rules, Turn, START_HEX};
+use crate::board::{Board, Color, Node, Rules, START_HEX, Turn};
 use crate::bug::Bug;
 use crate::hex_grid::Hex;
 use hexx::EdgeDirection;
@@ -52,16 +52,16 @@ impl Board {
     }
 
     pub(super) fn tile_name(&self, node: Node, out: &mut String) {
-        out.push(match node.get_color().unwrap() {
+        out.push(match node.color() {
             Color::White => 'w',
             Color::Black => 'b',
         });
-        out.push(node.get_bug().unwrap().to_char().to_ascii_uppercase());
+        out.push(node.bug().to_char().to_ascii_uppercase());
         if matches!(
-            node.get_bug().unwrap(),
+            node.bug(),
             Bug::Ant | Bug::Grasshopper | Bug::Beetle | Bug::Spider
         ) {
-            out.push(std::char::from_digit(node.get_bug_num() as u32, 10).unwrap())
+            out.push(std::char::from_digit(node.bug_num() as u32, 10).unwrap())
         }
     }
 
@@ -248,15 +248,15 @@ impl Board {
             .copied()
             .find(|&hex| {
                 let node = self.node(hex);
-                node.get_bug().unwrap() == bug && node.get_bug_num() == bug_num
+                node.bug() == bug && node.bug_num() == bug_num
             })
             .or_else(|| {
                 self.get_underworld()
                     .iter()
                     .find(|under| {
-                        under.get_node().get_color().unwrap() == color
-                            && under.get_node().get_bug().unwrap() == bug
-                            && under.get_node().get_bug_num() == bug_num
+                        under.get_node().color() == color
+                            && under.get_node().bug() == bug
+                            && under.get_node().bug_num() == bug_num
                     })
                     .map(|under| under.get_hex())
             })

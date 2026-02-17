@@ -56,9 +56,9 @@ impl NNUEBoard {
     }
 
     fn get_piece_number(node: Node) -> usize {
-        let bug = node.get_bug().unwrap();
-        let bug_num = node.get_bug_num();
-        let color = node.get_color().unwrap();
+        let bug = node.bug();
+        let bug_num = node.bug_num();
+        let color = node.color();
 
         match (bug, color) {
             //WHITE
@@ -130,9 +130,9 @@ impl NNUEBoard {
     }
 
     fn get_height_index(node: Node) -> usize {
-        let bug = node.get_bug().unwrap();
-        let bug_num = node.get_bug_num();
-        let color = node.get_color().unwrap();
+        let bug = node.bug();
+        let bug_num = node.bug_num();
+        let color = node.color();
 
         let offest_index = match (bug, bug_num, color) {
             (Bug::Beetle, 1, Color::White) => 0,
@@ -152,7 +152,7 @@ impl NNUEBoard {
         assert!(height > 0 && height < 8);
         let height_index = Self::get_height_index(node);
         let mut node_black = node.clone();
-        node_black.set_color((1 - node.get_color().unwrap() as u8).try_into().unwrap());
+        node_black.set_color((1 - node.color() as u8).try_into().unwrap());
         let height_black_index = Self::get_height_index(node_black);
 
         for i in 0..6 {
@@ -174,7 +174,7 @@ impl NNUEBoard {
     pub fn set_position(&mut self, node: Node, tile_id: usize) {
         let position_index = Self::get_position_index(node, tile_id);
         let mut node_black = node.clone();
-        node_black.set_color((1 - node.get_color().unwrap() as u8).try_into().unwrap());
+        node_black.set_color((1 - node.color() as u8).try_into().unwrap());
         let position_black_index = Self::get_position_index(node_black, tile_id);
         self.board[position_index] = true;
         self.board_black[position_black_index] = true;
@@ -188,7 +188,7 @@ impl NNUEBoard {
     pub fn unset_position(&mut self, node: Node, tile_id: usize) {
         let position_index = Self::get_position_index(node, tile_id);
         let mut node_black = node.clone();
-        node_black.set_color((1 - node.get_color().unwrap() as u8).try_into().unwrap());
+        node_black.set_color((1 - node.color() as u8).try_into().unwrap());
         let position_black_index = Self::get_position_index(node_black, tile_id);
         self.board[position_index] = false;
         self.board_black[position_black_index] = false;

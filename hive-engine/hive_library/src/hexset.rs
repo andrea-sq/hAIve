@@ -1,5 +1,6 @@
 use crate::board::GRID_SIZE;
 
+#[derive(Clone)]
 pub struct HexSet {
     hexes: [bool; GRID_SIZE],
 }

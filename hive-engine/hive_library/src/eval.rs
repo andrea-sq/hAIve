@@ -1,4 +1,4 @@
-use crate::board::{Board, Color, Rules, Turn, START_HEX};
+use crate::board::{Board, Color, Rules, START_HEX, Turn};
 use crate::bug::Bug;
 use crate::hex_grid::Hex;
 use hexx::EdgeDirection;
@@ -70,7 +70,7 @@ fn count_liberties(board: &Board, origin: Hex, hex: Hex) -> Evaluation {
 fn placeable(board: &Board, hex: Hex, color: Color) -> bool {
     !board
         .adjacent(hex)
-        .any(|adj| board.occupied(adj) && board.node(adj).get_color().unwrap() != color)
+        .any(|adj| board.occupied(adj) && board.node(adj).color() != color)
 }
 
 #[test]
@@ -136,11 +136,11 @@ impl Evaluator for BasicEvaluator {
             .chain(board.occupied_hexes[1].iter())
         {
             let node = board.node(hex);
-            let mut bug_score = self.value(node.get_bug().unwrap());
-            let mut pillbug_powers = node.get_bug().unwrap() == Bug::Pillbug;
-            let mut crawler = node.get_bug().unwrap().crawler();
+            let mut bug_score = self.value(node.bug());
+            let mut pillbug_powers = node.bug() == Bug::Pillbug;
+            let mut crawler = node.bug().crawler();
 
-            if node.get_bug().unwrap() == Bug::Mosquito {
+            if node.bug() == Bug::Mosquito {
                 bug_score = 0;
                 crawler = true;
                 if node.is_stacked() {
@@ -150,7 +150,7 @@ impl Evaluator for BasicEvaluator {
                     board
                         .adjacent(hex)
                         .filter(|&adj| board.occupied(adj))
-                        .map(|adj| board.node(adj).get_bug().unwrap())
+                        .map(|adj| board.node(adj).bug())
                         .for_each(|bug| {
                             if bug == Bug::Queen || bug == Bug::Mosquito {
                                 adjacent_number += 1;
@@ -178,17 +178,16 @@ impl Evaluator for BasicEvaluator {
             if node.is_stacked() {
                 bug_score *= 2;
             }
-            let friendly_queen = board.queens[node.get_color().unwrap() as usize];
+            let friendly_queen = board.queens[node.color() as usize];
 
             // TODO: Transpose this out of the loop
             if board.adjacent(friendly_queen).any(|adj| adj == hex) {
                 if immovable.contains(board.find_id(hex)) && !node.is_stacked() {
-                    queen_score[node.get_color().unwrap() as usize] -= self.queen_liberty_factor;
+                    queen_score[node.color() as usize] -= self.queen_liberty_factor;
                 } else {
-                    queen_score[node.get_color().unwrap() as usize] -=
-                        self.queen_liberty_factor / 2;
+                    queen_score[node.color() as usize] -= self.queen_liberty_factor / 2;
                 }
-                if pillbug_powers && board.node(friendly_queen).get_tile_height() == 1 {
+                if pillbug_powers && board.node(friendly_queen).tile_height() == 1 {
                     let best_escape = board
                         .adjacent(hex)
                         .into_iter()
@@ -202,16 +201,15 @@ impl Evaluator for BasicEvaluator {
                         .max()
                         .unwrap_or(0);
                     if best_escape > 2 {
-                        pillbug_defense[node.get_color().unwrap() as usize] = true;
+                        pillbug_defense[node.color() as usize] = true;
                     }
                 }
             }
-            let enemy_queen = board.queens[node.get_color().unwrap().other() as usize];
+            let enemy_queen = board.queens[node.color().other() as usize];
 
             if board.adjacent(enemy_queen).any(|adj| adj == hex) {
                 bug_score = 0;
-                queen_score[node.get_color().unwrap().other() as usize] -=
-                    self.queen_liberty_factor * 12 / 10;
+                queen_score[node.color().other() as usize] -= self.queen_liberty_factor * 12 / 10;
                 if pillbug_powers {
                     let best_unescape = board
                         .adjacent(hex)
@@ -225,8 +223,7 @@ impl Evaluator for BasicEvaluator {
                         .min()
                         .unwrap_or(6);
                     if best_unescape < 3 {
-                        queen_score[node.get_color().unwrap().other() as usize] =
-                            -self.queen_liberty_factor;
+                        queen_score[node.color().other() as usize] = -self.queen_liberty_factor;
                     }
                 }
             }
@@ -234,7 +231,7 @@ impl Evaluator for BasicEvaluator {
                 continue;
             }
             bug_score *= self.movable_bug_factor;
-            if node.get_color().unwrap() != board.to_move() {
+            if node.color() != board.to_move() {
                 bug_score = -bug_score;
                 if self.aggression == 1 {
                     bug_score *= 2;
@@ -249,7 +246,7 @@ impl Evaluator for BasicEvaluator {
                 - pillbug_defense[board.to_move().other() as usize] as Evaluation);
         pillbug_defense = [false; 2];
         for &color in &[Color::White, Color::Black] {
-            if board.node(board.queens[color as usize]).get_tile_height() == 1
+            if board.node(board.queens[color as usize]).tile_height() == 1
                 && board.remaining[color as usize][Bug::Pillbug as usize] > 0
                 && board
                     .adjacent(board.queens[color as usize])

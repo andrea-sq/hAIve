@@ -1,7 +1,9 @@
-use color_eyre::eyre::eyre;
 use color_eyre::Report;
+use color_eyre::eyre::eyre;
+use modular_bitfield::prelude::*;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Specifier)]
+#[bits = 3]
 #[repr(u8)]
 pub enum Bug {
     Queen = 0,

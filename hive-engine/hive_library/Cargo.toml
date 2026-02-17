@@ -20,6 +20,9 @@ serde = { version = "1.0.228", features = ["derive"] }
 csv = "1.4.0"
 serde_json = "1.0.149"
 serde-big-array = "0.5.1"
+modular-bitfield = "0.13.1"
+fix_fn = "1.0.2"
+rec-closure = "0.1.2"
 
 [profile.release]
 opt-level = 3          # Maximum optimizations (default: 3)
