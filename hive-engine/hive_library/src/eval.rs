@@ -1,6 +1,7 @@
 use crate::board::{Board, Color, Rules, Turn, START_HEX};
 use crate::bug::Bug;
-use hexx::{EdgeDirection, Hex};
+use crate::hex_grid::Hex;
+use hexx::EdgeDirection;
 use minimax::{Evaluation, Evaluator, Game};
 
 pub struct DumbEvaluator;
@@ -124,7 +125,7 @@ impl Evaluator for BasicEvaluator {
 
         score += Bug::iter_all()
             .map(|bug| {
-                (remaining[bug as usize] - opp_remaining[bug as usize]) as Evaluation
+                (remaining[bug as usize] as Evaluation - opp_remaining[bug as usize] as Evaluation)
                     * self.value(bug)
             })
             .sum::<Evaluation>()
@@ -304,14 +305,16 @@ impl Evaluator for BasicEvaluator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::board::GRID_RADIUS;
     use hexx::{HexOrientation, OffsetHexMode};
 
     fn loc_to_hex(loc: (i8, i8)) -> Hex {
-        Hex::from_offset_coordinates(
+        Hex(hexx::Hex::from_offset_coordinates(
             [loc.0 as i32, loc.1 as i32],
             OffsetHexMode::Even,
             HexOrientation::Pointy,
         )
+        .to_hexmod_coordinates(GRID_RADIUS as u32) as u16)
     }
 
     #[test]

@@ -1,6 +1,7 @@
 use crate::board::{Board, Color, Node, Rules, Turn, START_HEX};
 use crate::bug::Bug;
-use hexx::{EdgeDirection, Hex};
+use crate::hex_grid::Hex;
+use hexx::EdgeDirection;
 use minimax::Game;
 use std::io::Error;
 

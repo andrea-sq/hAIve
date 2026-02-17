@@ -1,6 +1,6 @@
 use crate::player::{Player, PlayerStrategy};
 use crate::{BasicEvaluator, Board, PlayerConfig, Rules};
-use minimax::{Evaluator, Game};
+use minimax::Game;
 use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::io;
@@ -51,24 +51,24 @@ pub fn generate_games<W: io::Write>(
 
         let basic_evaluator = BasicEvaluator::default();
 
-        let mut white_features_indices_vec = b.nnue_board.get_white_feature_indices();
-        let white_features_indices = white_features_indices_vec.try_into().unwrap();
-
-        let mut black_features_indices_vec = b.nnue_board.get_black_feature_indices();
-        let black_features_indices = black_features_indices_vec.try_into().unwrap();
-
-        let stm = p == 0;
-        let score = basic_evaluator.evaluate(&b) as f64;
-
-        let board_item = BoardItem {
-            white_features_indices,
-            black_features_indices,
-            stm,
-            score,
-        };
-
-        let string = serde_json::to_string(&board_item)?;
-        writeln!(&mut wrt, "{}", string)?;
+        // let mut white_features_indices_vec = b.nnue_board.get_white_feature_indices();
+        // let white_features_indices = white_features_indices_vec.try_into().unwrap();
+        //
+        // let mut black_features_indices_vec = b.nnue_board.get_black_feature_indices();
+        // let black_features_indices = black_features_indices_vec.try_into().unwrap();
+        //
+        // let stm = p == 0;
+        // let score = basic_evaluator.evaluate(&b) as f64;
+        //
+        // let board_item = BoardItem {
+        //     white_features_indices,
+        //     black_features_indices,
+        //     stm,
+        //     score,
+        // };
+        //
+        // let string = serde_json::to_string(&board_item)?;
+        // writeln!(&mut wrt, "{}", string)?;
 
         current_games += 1;
     }
