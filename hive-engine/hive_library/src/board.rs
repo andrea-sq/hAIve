@@ -154,7 +154,8 @@ impl Board {
     }
 
     pub fn wrap(&self, hex: Hex) -> Hex {
-        self.out_of_map_table[hex.x as usize + GRID_RADIUS + 1][hex.y as usize + GRID_RADIUS + 1]
+        self.out_of_map_table[(hex.x + GRID_RADIUS as i32 + 1) as usize]
+            [(hex.y + GRID_RADIUS as i32 + 1) as usize]
     }
 
     pub fn adjacent(&self, hex: Hex) -> impl Iterator<Item = Hex> {
@@ -363,8 +364,8 @@ impl Board {
             let mut table = [[0; 29]; 29];
 
             for (hex, _) in nodes.iter() {
-                let x = hex.x as usize + GRID_RADIUS;
-                let y = hex.y as usize + GRID_RADIUS;
+                let x = (hex.x + GRID_RADIUS as i32) as usize;
+                let y = (hex.y + GRID_RADIUS as i32) as usize;
                 table[x][y] = hex.to_hexmod_coordinates(GRID_RADIUS as u32) as usize;
             }
 
@@ -377,8 +378,8 @@ impl Board {
             let faux_nodes = HexModMap::new(START_HEX, GRID_RADIUS as u32 + 1, |_| Node(0));
 
             for (hex, _) in faux_nodes.iter() {
-                let x = hex.x as usize + GRID_RADIUS + 1;
-                let y = hex.y as usize + GRID_RADIUS + 1;
+                let x = (hex.x + GRID_RADIUS as i32 + 1) as usize;
+                let y = (hex.y + GRID_RADIUS as i32 + 1) as usize;
                 if !hex_bounds.is_in_bounds(hex) {
                     table[x][y] = hex_bounds.wrap(hex);
                 } else {

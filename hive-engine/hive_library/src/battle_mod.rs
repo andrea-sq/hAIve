@@ -45,8 +45,16 @@ fn face_off(
             println!("Game string: {}", b.game_string());
             return match winner {
                 minimax::Winner::Draw => None,
-                minimax::Winner::PlayerJustMoved => Some(players[p].name()),
-                minimax::Winner::PlayerToMove => Some(players[1 - p].name()),
+                minimax::Winner::PlayerJustMoved => Some(if p == 0 {
+                    "Agent1".to_owned()
+                } else {
+                    "Agent2".to_owned()
+                }),
+                minimax::Winner::PlayerToMove => Some(if p == 1 {
+                    "Agent1".to_owned()
+                } else {
+                    "Agent2".to_owned()
+                }),
             };
         }
         players[p].play_move(m);
