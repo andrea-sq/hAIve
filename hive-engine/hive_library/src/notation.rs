@@ -328,6 +328,7 @@ impl Board {
     pub(crate) fn apply_untrusted(&mut self, m: Turn) -> Result<()> {
         let mut moves = Vec::new();
         Rules::generate_moves(self, &mut moves);
+        println!("Move: {:#?}", m);
         if !moves.contains(&m) {
             return Err(UhpError::InvalidMove(
                 "That is not a valid move".to_string(),

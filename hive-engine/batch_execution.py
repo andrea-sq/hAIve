@@ -73,6 +73,7 @@ def run_battle(
         )
         if result.returncode != 0:
             return None, None, f"Battle program exited with error: {result.stderr}"
+        print(result.stdout)
 
         # Parse the output for game result
         game_string = None
@@ -99,8 +100,8 @@ def run_battle(
 
 
 def main():
-    agent2_path = "ai"  # Replace with actual path
-    agent1_path = "/home/andrea/Packages/nokamute/target/release/nokamute"  # Replace with actual path
+    agent1_path = "ai"  # Replace with actual path
+    agent2_path = "/home/andrea/Packages/nokamute/target/release/nokamute"  # Replace with actual path
     num_matches = 100
     game_type = "Base+MLP"
 

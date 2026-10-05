@@ -539,15 +539,13 @@ impl Board {
         self.zorbist_history.push(self.zorbist_hash);
         self.turn_history.push(turn);
         // TODO: Actually calculate_when stale
-        self.articulation_points = self.find_cut_vertices();
+        //self.articulation_points = self.find_cut_vertices();
         self.stale_articulation_points = false;
     }
 
     pub fn undo(&mut self, turn: Turn) {
         // TODO: Do it smarter, with command history
         self.stale_articulation_points = true;
-        self.articulation_points = self.find_cut_vertices();
-        self.stale_articulation_points = false;
 
         self.turn_num -= 1;
         self.zorbist_history.pop();
@@ -948,6 +946,7 @@ impl Board {
 
     pub(crate) fn generate_movements(&self, turns: &mut Vec<Turn>) {
         let mut immovable = self.find_cut_vertices();
+        println!("Is 2 immovable: {:#?}", immovable.contains(2));
         let stunned = match self.turn_history.last() {
             Some(Turn::Move(_, dest)) => Some(dest),
             _ => None,

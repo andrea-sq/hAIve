@@ -20,4 +20,7 @@ impl HexSet {
     pub fn contains(&self, hex: usize) -> bool {
         self.hexes[hex]
     }
+    pub fn clear(&mut self) {
+        self.hexes.iter_mut().for_each(|x| *x = false);
+    }
 }
