@@ -33,7 +33,7 @@ pub fn engine_version() -> &'static str {
 impl Board {
     pub fn from_game_type(game_type: &str) -> Result<Self> {
         let err = || UhpError::InvalidGameType(game_type.to_owned());
-        let mut starting = [3, 3, 2, 2, 1, 0, 0, 0];
+        let mut starting = [1, 3, 2, 3, 2, 0, 0, 0];
         let mut toks = game_type.split('+');
         if toks.next().ok_or_else(err)? != "Base" {
             return Err(err());
@@ -328,7 +328,6 @@ impl Board {
     pub(crate) fn apply_untrusted(&mut self, m: Turn) -> Result<()> {
         let mut moves = Vec::new();
         Rules::generate_moves(self, &mut moves);
-        println!("Move: {:#?}", m);
         if !moves.contains(&m) {
             return Err(UhpError::InvalidMove(
                 "That is not a valid move".to_string(),

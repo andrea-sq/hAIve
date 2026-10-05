@@ -105,10 +105,7 @@ impl Node {
     }
 
     pub(crate) fn bug_id(&self) -> u8 {
-        // TODO: Make it somehow more robust
-        let mut self_clone = self.clone();
-        self_clone.set_bug_num(self.bug_num() - 1);
-        Into::<u8>::into(self_clone) & 0b111111
+        Into::<u8>::into(*self) & 0b111111u8
     }
 }
 
@@ -475,11 +472,11 @@ impl Board {
         }
     }
     pub fn new_core_set() -> Self {
-        Self::new([3, 3, 2, 2, 1, 0, 0, 0])
+        Self::new([1, 3, 2, 3, 2, 0, 0, 0])
     }
 
     pub fn new_expansions() -> Self {
-        Self::new([3, 3, 2, 2, 1, 1, 1, 1])
+        Self::new([1, 3, 2, 3, 2, 1, 1, 1])
     }
 }
 
@@ -595,7 +592,7 @@ impl Board {
     }
     pub(crate) fn find_cut_vertices_articulation(&self, articulation_points: &mut HexSet) {
         //let mut time_perf = Instant::now();
-        const NUM_BUG: usize = 36;
+        const NUM_BUG: usize = 64;
         // 0b100011
         //let mut bug_hex_bijection = [Hex(0); NUM_BUG];
         let mut visited_bug = [false; NUM_BUG];
@@ -611,7 +608,7 @@ impl Board {
         //println!("Initialization time: {:#?}", time_perf.elapsed());
         //let mut time_perf = Instant::now();
 
-        static mut STACK: [MaybeUninit<(Hex, u8)>; 60] = [const { MaybeUninit::uninit() }; 60];
+        static mut STACK: [MaybeUninit<(Hex, u8)>; 30] = [const { MaybeUninit::uninit() }; 30];
 
         let start = self.queens[0];
         let start_bug = self.node(self.queens[0]).bug_id() as usize;
@@ -946,7 +943,6 @@ impl Board {
 
     pub(crate) fn generate_movements(&self, turns: &mut Vec<Turn>) {
         let mut immovable = self.find_cut_vertices();
-        println!("Is 2 immovable: {:#?}", immovable.contains(2));
         let stunned = match self.turn_history.last() {
             Some(Turn::Move(_, dest)) => Some(dest),
             _ => None,

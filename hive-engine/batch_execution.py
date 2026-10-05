@@ -73,7 +73,8 @@ def run_battle(
         )
         if result.returncode != 0:
             return None, None, f"Battle program exited with error: {result.stderr}"
-        print(result.stdout)
+        if "illegal" in result.stdout:
+            print(result.stdout)
 
         # Parse the output for game result
         game_string = None

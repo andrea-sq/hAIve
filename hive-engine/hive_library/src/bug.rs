@@ -4,11 +4,11 @@ use modular_bitfield::prelude::*;
 #[bits = 3]
 #[repr(u8)]
 pub enum Bug {
-    Ant = 0,
+    Queen = 0,
     Grasshopper = 1,
     Spider = 2,
-    Beetle = 3,
-    Queen = 4,
+    Ant = 3,
+    Beetle = 4,
     Mosquito = 5,
     Ladybug = 6,
     Pillbug = 7,
@@ -55,11 +55,11 @@ impl Bug {
 
     pub fn iter_all() -> impl Iterator<Item = Self> {
         [
-            Bug::Ant,
+            Bug::Queen,
             Bug::Grasshopper,
             Bug::Spider,
+            Bug::Ant,
             Bug::Beetle,
-            Bug::Queen,
             Bug::Mosquito,
             Bug::Ladybug,
             Bug::Pillbug,
@@ -69,7 +69,7 @@ impl Bug {
     }
 
     pub(crate) fn initial_quantity() -> &'static [u8; 8] {
-        &[3, 3, 2, 2, 1, 1, 1, 1]
+        &[1, 3, 2, 3, 2, 1, 1, 1]
     }
 
     pub(crate) fn crawler(&self) -> bool {
