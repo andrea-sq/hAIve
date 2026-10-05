@@ -105,7 +105,7 @@ impl Node {
     }
 
     pub(crate) fn bug_id(&self) -> u8 {
-        Into::<u8>::into(*self) & 0b111111u8
+        Into::<u8>::into(*self) & 0b111111
     }
 }
 
@@ -592,6 +592,7 @@ impl Board {
     }
     pub(crate) fn find_cut_vertices_articulation(&self, articulation_points: &mut HexSet) {
         //let mut time_perf = Instant::now();
+        // TODO: We can lower this number, you just have to do it very very carefully
         const NUM_BUG: usize = 64;
         // 0b100011
         //let mut bug_hex_bijection = [Hex(0); NUM_BUG];
@@ -646,7 +647,7 @@ impl Board {
                         STACK[top as usize].write((v, 0));
                     }
                     top += 1;
-                } else if v.0 as i8 != parent_bug[bug_hex_id] {
+                } else if bug_v as i8 != parent_bug[bug_hex_id] {
                     low_bug[bug_hex_id] = min(low_bug[bug_hex_id], disc_bug[bug_v]);
                 }
             } else {
@@ -943,6 +944,7 @@ impl Board {
 
     pub(crate) fn generate_movements(&self, turns: &mut Vec<Turn>) {
         let mut immovable = self.find_cut_vertices();
+
         let stunned = match self.turn_history.last() {
             Some(Turn::Move(_, dest)) => Some(dest),
             _ => None,

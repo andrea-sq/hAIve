@@ -101,8 +101,8 @@ def run_battle(
 
 
 def main():
-    agent1_path = "ai"  # Replace with actual path
-    agent2_path = "/home/andrea/Packages/nokamute/target/release/nokamute"  # Replace with actual path
+    agent2_path = "ai"  # Replace with actual path
+    agent1_path = "/home/andrea/Packages/nokamute/target/release/nokamute"  # Replace with actual path
     num_matches = 100
     game_type = "Base+MLP"
 
