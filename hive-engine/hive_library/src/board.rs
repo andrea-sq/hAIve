@@ -538,17 +538,16 @@ impl Board {
         self.zorbist_hash ^= 0xa6c11b626b105b7c;
         self.zorbist_history.push(self.zorbist_hash);
         self.turn_history.push(turn);
-        /*
-         *
-        if self.stale_articulation_points {
-            self.articulation_points = self.find_cut_vertices();
-        }
-         */
+        // TODO: Actually calculate_when stale
+        self.articulation_points = self.find_cut_vertices();
+        self.stale_articulation_points = false;
     }
 
     pub fn undo(&mut self, turn: Turn) {
         // TODO: Do it smarter, with command history
         self.stale_articulation_points = true;
+        self.articulation_points = self.find_cut_vertices();
+        self.stale_articulation_points = false;
 
         self.turn_num -= 1;
         self.zorbist_history.pop();

@@ -114,3 +114,5 @@ http-client.private.env.json
 /hive-engine/battler/perf.data.old
 /hive-engine/hive_library/src/_copy_board_rs.bak
 /hive-engine/perf.data
+/hive-engine/clippy.toml
+/hive-engine/perf.data.old
