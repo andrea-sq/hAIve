@@ -1,7 +1,7 @@
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
-battle_path = "./target/release/battle"
+battle_path = "./target/release/battler"
 
 
 def run_battle(
@@ -48,6 +48,8 @@ def run_battle(
         "1",
         "--player2-num-threads",
         "1",
+    ]
+    """
         "--player1-table_mb",
         "2048",
         "--player2-table_mb",
@@ -60,8 +62,9 @@ def run_battle(
         "--player2-quiet-search",
         "--player1-background-ponder",
         "--player2-background-ponder",
-    ]
+    """
     try:
+        print("Started match")
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -96,9 +99,9 @@ def run_battle(
 
 
 def main():
-    agent1_path = "ai"  # Replace with actual path
     agent2_path = "ai"  # Replace with actual path
-    num_matches = 10000
+    agent1_path = "/home/andrea/Packages/nokamute/target/release/nokamute"  # Replace with actual path
+    num_matches = 100
     game_type = "Base+MLP"
 
     results = []
@@ -111,8 +114,8 @@ def main():
                 agent2_path,
                 game_type,
                 verbose=True,
-                strategy1="random",
-                strategy2="random"
+                strategy1="iterative",
+                strategy2="iterative",
             )
             for _ in range(num_matches)
         ]
@@ -125,8 +128,12 @@ def main():
                 results.append((winner, game_string))
 
     # Count results
-    agent1_wins = sum(1 for w, _ in results if w == "Agent1")
-    agent2_wins = sum(1 for w, _ in results if w == "Agent2")
+    agent1_wins = sum(
+        1 for w, _ in results if ("agent1" in w.lower() or "white" in w.lower())
+    )
+    agent2_wins = sum(
+        1 for w, _ in results if ("agent2" in w.lower() or "black" in w.lower())
+    )
     draws = sum(1 for w, _ in results if w == "draw.")
 
     print(f"Agent1 Wins: {agent1_wins}")

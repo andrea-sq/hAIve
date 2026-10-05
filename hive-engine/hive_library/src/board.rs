@@ -10,6 +10,7 @@ use std::cmp::{max, min};
 use std::hash::{DefaultHasher, Hasher};
 use std::mem::MaybeUninit;
 use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 pub(crate) const START_HEX: Hex = Hex(0);
 pub(crate) const GRID_RADIUS: usize = 14;
@@ -105,7 +106,9 @@ impl Node {
 
     pub(crate) fn bug_id(&self) -> u8 {
         // TODO: Make it somehow more robust
-        Into::<u8>::into(*self) & 0b111111
+        let mut self_clone = self.clone();
+        self_clone.set_bug_num(self.bug_num() - 1);
+        Into::<u8>::into(self_clone) & 0b111111
     }
 }
 
@@ -157,6 +160,9 @@ pub struct Board {
 
     pub(super) turn_history: Vec<Turn>,
     pub(super) game_type_bits: u8,
+
+    pub articulation_points: HexSet,
+    pub stale_articulation_points: bool,
 }
 
 impl Board {
@@ -287,6 +293,7 @@ impl Board {
             self.occupied_add(color, hex);
         }
         let tile_height = min(3, prev.tile_height() + 1);
+        // TODO: This bug num should be created more carefully
         self.nodes[hex] = Node::new_occupied(bug, color, bug_num, tile_height);
 
         //NNUE board snippet
@@ -463,14 +470,16 @@ impl Board {
             id_table,
             out_of_map_table,
             game_type_bits,
+            articulation_points: HexSet::new(),
+            stale_articulation_points: false,
         }
     }
     pub fn new_core_set() -> Self {
-        Self::new([1, 3, 2, 3, 2, 0, 0, 0])
+        Self::new([3, 3, 2, 2, 1, 0, 0, 0])
     }
 
     pub fn new_expansions() -> Self {
-        Self::new([1, 3, 2, 3, 2, 1, 1, 1])
+        Self::new([3, 3, 2, 2, 1, 1, 1, 1])
     }
 }
 
@@ -489,17 +498,39 @@ pub enum Turn {
 }
 
 impl Board {
+    fn disconnected_neighbors(&self, center: Hex) -> bool {
+        let neighbors = self.adjacent_vec(center);
+        let mut current_state = self.occupied(neighbors[0]);
+        let mut different_state = 1;
+        for i in (1..6) {
+            if self.occupied(neighbors[i]) != current_state {
+                different_state += 1;
+                current_state = !current_state;
+            }
+        }
+        different_state >= 4
+    }
+
     pub fn apply(&mut self, turn: Turn) {
         match turn {
             Turn::Place(hex, bug) => {
+                if self.disconnected_neighbors(hex) {
+                    self.stale_articulation_points = true;
+                }
                 let bug_num =
                     Bug::initial_quantity()[bug as usize] - self.get_remaining()[bug as usize] + 1;
                 self.insert(hex, bug, bug_num, self.to_move());
                 self.mut_remaining()[bug as usize] -= 1;
             }
             Turn::Move(from, to) => {
+                if self.disconnected_neighbors(from) {
+                    self.stale_articulation_points = true;
+                }
                 let (bug, bug_num, color) = self.remove(from);
                 self.insert(to, bug, bug_num, color);
+                if self.disconnected_neighbors(to) {
+                    self.stale_articulation_points = true;
+                }
             }
             _ => {}
         }
@@ -507,9 +538,18 @@ impl Board {
         self.zorbist_hash ^= 0xa6c11b626b105b7c;
         self.zorbist_history.push(self.zorbist_hash);
         self.turn_history.push(turn);
+        /*
+         *
+        if self.stale_articulation_points {
+            self.articulation_points = self.find_cut_vertices();
+        }
+         */
     }
 
     pub fn undo(&mut self, turn: Turn) {
+        // TODO: Do it smarter, with command history
+        self.stale_articulation_points = true;
+
         self.turn_num -= 1;
         self.zorbist_history.pop();
         self.turn_history.pop();
@@ -556,161 +596,186 @@ impl Board {
             }
         }
     }
-
-    pub(crate) fn find_cut_vertices(&self) -> HexSet {
-        const NUM_BUG: usize = 28;
+    pub(crate) fn find_cut_vertices_articulation(&self, articulation_points: &mut HexSet) {
+        //let mut time_perf = Instant::now();
+        const NUM_BUG: usize = 36;
+        // 0b100011
+        //let mut bug_hex_bijection = [Hex(0); NUM_BUG];
         let mut visited_bug = [false; NUM_BUG];
-        let mut visited = HexSet::new();
-        let mut disc = [0; GRID_SIZE];
-        let mut low = [0; GRID_SIZE];
-        let mut parent = [-1; GRID_SIZE];
-        let mut articulation_points = HexSet::new();
+        let mut disc_bug = [0; NUM_BUG];
+        let mut low_bug = [0; NUM_BUG];
+        let mut parent_bug = [0; NUM_BUG];
+        let mut children_count_bug = [0; NUM_BUG];
         let mut time = 0;
-        let mut children_count = [0; GRID_SIZE];
 
-        let mut stack: [MaybeUninit<(Hex, u8, u8)>; 60] = [const { MaybeUninit::uninit() }; 60];
+        //static mut SUM_TIME_ELAPSED: Duration = Duration::ZERO;
+        //static mut NUM_MEASURMENTS: usize = 0;
+
+        //println!("Initialization time: {:#?}", time_perf.elapsed());
+        //let mut time_perf = Instant::now();
+
+        static mut STACK: [MaybeUninit<(Hex, u8)>; 60] = [const { MaybeUninit::uninit() }; 60];
 
         let start = self.queens[0];
+        let start_bug = self.node(self.queens[0]).bug_id() as usize;
 
+        //let execution_time = Instant::now();
         let mut top = 0i32;
-        stack[top as usize].write((start, 0, 0));
+        unsafe {
+            STACK[top as usize].write((start, 0));
+        }
         top += 1;
 
         while top > 0 {
-            //println!("{index_array}");
-            let (hex, neighbor_idx, state) = unsafe { stack[top as usize - 1].assume_init() };
-            top -= 1;
+            let (hex, neighbor_idx) = unsafe { STACK[top as usize - 1].assume_init_mut() };
 
-            let hex_idx = hex.0 as usize;
-            let bug_hex_id = self.node(hex).bug_id();
+            let bug_hex_id = self.node(*hex).bug_id() as usize;
 
-            if state == 0 {
-                if !visited.contains(hex_idx) {
-                    visited.insert(hex_idx);
-                    time += 1;
-                    disc[hex_idx] = time;
-                    low[hex_idx] = time;
+            if !visited_bug[bug_hex_id] {
+                visited_bug[bug_hex_id] = true;
+                time += 1;
+                disc_bug[bug_hex_id] = time;
+                low_bug[bug_hex_id] = time;
+            }
+            if *neighbor_idx < 6 {
+                let v = self.adjacent_vec(*hex)[*neighbor_idx as usize];
+                *neighbor_idx += 1;
+                if !self.occupied(v) {
+                    continue;
                 }
-                if neighbor_idx < 6 {
-                    let v = self.adjacent_vec(hex)[neighbor_idx as usize];
-                    stack[top as usize].write((hex, neighbor_idx + 1, 0));
-                    top += 1;
-                    if !self.occupied(v) {
-                        continue;
-                    }
+                let bug_v = self.node(v).bug_id() as usize;
 
-                    if !visited.contains(v.0 as usize) {
-                        parent[v.0 as usize] = hex_idx as i32;
-                        children_count[hex_idx] += 1;
-                        stack[top as usize].write((v, 0, 0));
-                        top += 1;
-                    } else if v.0 as i32 != parent[hex_idx] {
-                        low[hex_idx] = min(low[hex_idx], disc[v.0 as usize]);
+                if !visited_bug[bug_v] {
+                    parent_bug[bug_v] = bug_hex_id as i8;
+                    children_count_bug[bug_hex_id] += 1;
+                    unsafe {
+                        STACK[top as usize].write((v, 0));
                     }
-                } else {
-                    stack[top as usize].write((hex, 0, 1));
                     top += 1;
+                } else if v.0 as i8 != parent_bug[bug_hex_id] {
+                    low_bug[bug_hex_id] = min(low_bug[bug_hex_id], disc_bug[bug_v]);
                 }
             } else {
+                top -= 1;
+                //stack[top as usize].write((hex, 0, 1));
+                //top += 1;
                 if top > 0 {
-                    let p = unsafe { stack[top as usize - 1].assume_init().0 };
-                    low[p.0 as usize] = min(low[p.0 as usize], low[hex_idx]);
-
-                    if parent[p.0 as usize] != -1 && low[hex_idx] >= disc[p.0 as usize] {
+                    let p = unsafe { STACK[top as usize - 1].assume_init().0 };
+                    let p_bug = self.node(p).bug_id() as usize;
+                    low_bug[p_bug] = min(low_bug[p_bug], low_bug[bug_hex_id]);
+                    //low[p.0 as usize] = min(low[p.0 as usize], low[hex_idx]);
+                    if parent_bug[p_bug] != -1 && low_bug[bug_hex_id] >= disc_bug[p_bug] {
                         articulation_points.insert(p.0 as usize);
                     }
-                } else if children_count[start.0 as usize] > 1 {
+                } else if children_count_bug[start_bug] > 1 {
                     articulation_points.insert(start.0 as usize);
                 }
             }
         }
+        /*
+         *
+        let new_sum_time = unsafe {
+            NUM_MEASURMENTS += 1;
+            SUM_TIME_ELAPSED += execution_time.elapsed();
+            SUM_TIME_ELAPSED
+        };
+        let mean_duration = unsafe { new_sum_time / (NUM_MEASURMENTS as u32) };
+        println!("Mean duration: {mean_duration:#?}");
+         */
+
+        //dfs_ap(start, start);
+    }
+
+    pub(crate) fn find_cut_vertices(&self) -> HexSet {
+        //let mut time_perf = Instant::now();
+        const NUM_BUG: usize = 36;
+        // 0b100011
+        //let mut bug_hex_bijection = [Hex(0); NUM_BUG];
+        let mut visited_bug = [false; NUM_BUG];
+        let mut disc_bug = [0; NUM_BUG];
+        let mut low_bug = [0; NUM_BUG];
+        let mut parent_bug = [0; NUM_BUG];
+        let mut articulation_points = HexSet::new();
+        let mut children_count_bug = [0; NUM_BUG];
+        let mut time = 0;
+
+        //static mut SUM_TIME_ELAPSED: Duration = Duration::ZERO;
+        //static mut NUM_MEASURMENTS: usize = 0;
+
+        //println!("Initialization time: {:#?}", time_perf.elapsed());
+        //let mut time_perf = Instant::now();
+
+        static mut STACK: [MaybeUninit<(Hex, u8)>; 60] = [const { MaybeUninit::uninit() }; 60];
+
+        let start = self.queens[0];
+        let start_bug = self.node(self.queens[0]).bug_id() as usize;
+
+        //let execution_time = Instant::now();
+        let mut top = 0i32;
+        unsafe {
+            STACK[top as usize].write((start, 0));
+        }
+        top += 1;
+
+        while top > 0 {
+            let (hex, neighbor_idx) = unsafe { STACK[top as usize - 1].assume_init_mut() };
+
+            let bug_hex_id = self.node(*hex).bug_id() as usize;
+
+            if !visited_bug[bug_hex_id] {
+                visited_bug[bug_hex_id] = true;
+                time += 1;
+                disc_bug[bug_hex_id] = time;
+                low_bug[bug_hex_id] = time;
+            }
+            if *neighbor_idx < 6 {
+                let v = self.adjacent_vec(*hex)[*neighbor_idx as usize];
+                *neighbor_idx += 1;
+                if !self.occupied(v) {
+                    continue;
+                }
+                let bug_v = self.node(v).bug_id() as usize;
+
+                if !visited_bug[bug_v] {
+                    parent_bug[bug_v] = bug_hex_id as i8;
+                    children_count_bug[bug_hex_id] += 1;
+                    unsafe {
+                        STACK[top as usize].write((v, 0));
+                    }
+                    top += 1;
+                } else if v.0 as i8 != parent_bug[bug_hex_id] {
+                    low_bug[bug_hex_id] = min(low_bug[bug_hex_id], disc_bug[bug_v]);
+                }
+            } else {
+                top -= 1;
+                //stack[top as usize].write((hex, 0, 1));
+                //top += 1;
+                if top > 0 {
+                    let p = unsafe { STACK[top as usize - 1].assume_init().0 };
+                    let p_bug = self.node(p).bug_id() as usize;
+                    low_bug[p_bug] = min(low_bug[p_bug], low_bug[bug_hex_id]);
+                    //low[p.0 as usize] = min(low[p.0 as usize], low[hex_idx]);
+                    if parent_bug[p_bug] != -1 && low_bug[bug_hex_id] >= disc_bug[p_bug] {
+                        articulation_points.insert(p.0 as usize);
+                    }
+                } else if children_count_bug[start_bug] > 1 {
+                    articulation_points.insert(start.0 as usize);
+                }
+            }
+        }
+        /*
+         *
+        let new_sum_time = unsafe {
+            NUM_MEASURMENTS += 1;
+            SUM_TIME_ELAPSED += execution_time.elapsed();
+            SUM_TIME_ELAPSED
+        };
+        let mean_duration = unsafe { new_sum_time / (NUM_MEASURMENTS as u32) };
+        println!("Mean duration: {mean_duration:#?}");
+         */
 
         //dfs_ap(start, start);
         articulation_points
-
-        /*
-        fn dfs(state: &mut State, hex: Hex, parent: Hex) {
-            state.visited.insert(hex.0 as usize);
-            state.num[hex.0 as usize] = state.visit_num;
-            state.low[hex.0 as usize] = state.visit_num;
-            state.visit_num += 1;
-
-            let root = hex == parent;
-            let mut children = 0;
-            for adj in state.board.adjacent(hex) {
-                let id_adj = adj.0 as usize;
-                if !state.board.occupied(adj) {
-                    continue;
-                }
-                if adj == parent {
-                    continue;
-                }
-                if state.visited.contains(id_adj) {
-                    state.low[hex.0 as usize] = min(state.low[hex.0 as usize], state.num[id_adj]);
-                } else {
-                    dfs(state, adj, hex);
-                    state.low[hex.0 as usize] = min(state.low[hex.0 as usize], state.low[id_adj]);
-                    if state.low[id_adj] >= state.num[hex.0 as usize] && !root {
-                        state.immovable.insert(hex.0 as usize);
-                    }
-                    children += 1;
-                }
-            }
-            if root && children > 1 {
-                state.immovable.insert(hex.0 as usize);
-            }
-        }
-        let start = self.queens[0];
-        dfs(&mut state, start, start);
-        state.immovable
-
-        let state_ref = &mut state;
-        let state_pointer = state_ref as *mut State;
-        let state_addr = state_pointer as usize;
-
-        unsafe {
-            STATE_ADDR.set(state_addr);
-
-            fn dfs_ap(hex: Hex, parent: Hex) {
-                let u = hex.0 as usize;
-                let state_ap: &mut State = unsafe { &mut *(STATE_ADDR.get() as *mut State) };
-
-                state_ap.visited.insert(u);
-                state_ap.num[u] = state_ap.visit_num;
-                state_ap.low[u] = state_ap.visit_num;
-                state_ap.visit_num += 1;
-
-                let root = hex == parent;
-                let mut children = 0;
-
-                for adj in state_ap.board.adjacent(hex) {
-                    let id_adj = adj.0 as usize;
-                    if !state_ap.board.occupied(adj) {
-                        continue;
-                    }
-                    if adj == parent {
-                        continue;
-                    }
-                    if state_ap.visited.contains(id_adj) {
-                        state_ap.low[u] = min(state_ap.low[u], state_ap.num[id_adj]);
-                    } else {
-                        dfs_ap(adj, hex);
-                        state_ap.low[u] = min(state_ap.low[u], state_ap.low[id_adj]);
-                        if state_ap.low[id_adj] >= state_ap.num[u] && !root {
-                            state_ap.immovable.insert(u);
-                        }
-                        children += 1;
-                    }
-                }
-                if root && children > 1 {
-                    state_ap.immovable.insert(u);
-                }
-            }
-            let start = self.queens[0];
-            dfs_ap(start, start);
-            state.immovable
-        }
-        */
     }
 
     pub(crate) fn slideable_adjacent<'a>(

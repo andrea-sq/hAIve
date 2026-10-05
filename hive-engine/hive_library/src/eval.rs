@@ -47,7 +47,7 @@ impl BasicEvaluator {
             Bug::Beetle => 6,
             Bug::Ladybug => 6,
             Bug::Pillbug => 5,
-            Bug::Grasshopper => 3,
+            Bug::Grasshopper => 2,
             Bug::Spider => 2,
         }
     }
